@@ -1,0 +1,12 @@
+{
+  "name": "hr-calc",
+  "version": "1.0.0",
+  "description": "Калькулятор стоимости сотрудника (нетто → gross → полные затраты) для РФ, Казахстана и Узбекистана. PWA без сборки.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "start": "node server.mjs"
+  },
+  "license": "MIT"
+}

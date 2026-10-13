@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HR Calc — калькулятор стоимости сотрудника</title>
+  <meta name="description" content="Расчёт от суммы на руки: начисление, налоги, взносы и полные затраты компании для РФ, Казахстана и Узбекистана.">
+  <meta name="theme-color" content="#1f3a5f">
+  <meta name="color-scheme" content="light dark">
+  <meta name="application-name" content="HR Calc">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="HR Calc">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="./">
+        <img src="icons/icon.svg" alt="" width="28" height="28">
+        <span>HR Calc</span>
+        <span class="brand__sub">стоимость сотрудника · 2026</span>
+      </a>
+      <div class="topbar__actions">
+        <span id="netStatus" class="badge badge--ok" title="Состояние сети">онлайн</span>
+        <button id="installBtn" class="btn btn--ghost" type="button" hidden>Установить приложение</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ===== Ввод ===== -->
+    <section class="panel panel--form" aria-label="Исходные данные">
+      <div class="card">
+        <h2 class="card__title">Страна и режим</h2>
+        <div class="seg" id="countrySeg" role="tablist" aria-label="Страна">
+          <button type="button" class="seg__btn" data-country="RU" role="tab">Россия</button>
+          <button type="button" class="seg__btn" data-country="KZ" role="tab">Казахстан</button>
+          <button type="button" class="seg__btn" data-country="UZ" role="tab">Узбекистан</button>
+        </div>
+        <label class="field">
+          <span class="field__label">Форма оформления</span>
+          <select id="regime" class="input"></select>
+        </label>
+        <ul id="regimeNotes" class="notes"></ul>
+        <div id="countryOptions" class="options"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">Доход сотрудника (на руки)</h2>
+        <label class="field">
+          <span class="field__label">Оклад, нетто в месяц <em class="cur" data-cur></em></span>
+          <input id="netSalary" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
+        </label>
+        <label class="field">
+          <span class="field__label">Премия за проект при 100 % загрузки, нетто <em class="cur" data-cur></em></span>
+          <input id="premiumFull" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
+        </label>
+        <div class="field">
+          <span class="field__label">Загрузка в проекте за месяц, % от полной занятости</span>
+          <div class="range">
+            <input id="utilizationRange" type="range" min="0" max="100" step="5" value="100">
+            <input id="utilization" class="input input--num input--short" type="text" inputmode="numeric" autocomplete="off" value="100">
+            <span>%</span>
+          </div>
+          <p class="field__hint">Премия к выплате: <strong id="premiumCalc">0</strong></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">Дополнительные затраты компании</h2>
+        <p class="card__sub">Не входят в зарплату и не облагаются в расчёте. Приводятся к месячной сумме.</p>
+        <div class="extra">
+          <span class="field__label">Связь</span>
+          <input id="telecomAmount" class="input input--num" type="text" inputmode="decimal" placeholder="0">
+          <select id="telecomPeriod" class="input input--period"><option value="month">в месяц</option><option value="year">в год</option></select>
+        </div>
+        <div class="extra">
+          <span class="field__label">ДМС</span>
+          <input id="dmsAmount" class="input input--num" type="text" inputmode="decimal" placeholder="0">
+          <select id="dmsPeriod" class="input input--period"><option value="year">в год</option><option value="month">в месяц</option></select>
+        </div>
+        <div class="extra">
+          <span class="field__label">Обучение</span>
+          <input id="trainingAmount" class="input input--num" type="text" inputmode="decimal" placeholder="0">
+          <select id="trainingPeriod" class="input input--period"><option value="year">в год</option><option value="month">в месяц</option></select>
+        </div>
+        <div class="extra extra--eq">
+          <span class="field__label">Оборудование</span>
+          <input id="equipmentAmount" class="input input--num" type="text" inputmode="decimal" placeholder="стоимость">
+          <label class="extra__months">на <input id="equipmentMonths" class="input input--num input--short" type="text" inputmode="numeric" value="24"> мес.</label>
+        </div>
+      </div>
+
+      <details class="card card--details" id="paramsDetails">
+        <summary class="card__title">Параметры расчёта <span class="muted" id="paramsCountryLabel"></span></summary>
+        <p class="card__sub">Ставки и пороги по умолчанию — на 2026 год. Изменения сохраняются в браузере.</p>
+        <div id="paramsForm" class="params"></div>
+        <div id="bracketsBlock" class="brackets" hidden>
+          <h3 class="h3">Шкала НДФЛ (годовой доход)</h3>
+          <table class="table table--brackets"><tbody id="bracketsBody"></tbody></table>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost" id="resetParams">Вернуть значения 2026</button>
+        </div>
+      </details>
+    </section>
+
+    <!-- ===== Результат ===== -->
+    <section class="panel panel--result" aria-label="Результат расчёта" id="result">
+      <div class="hero">
+        <div class="hero__item">
+          <span class="hero__label">На руки</span>
+          <span class="hero__value" id="hNet">—</span>
+          <span class="hero__sub">в месяц</span>
+        </div>
+        <div class="hero__item">
+          <span class="hero__label">Начислено (gross)</span>
+          <span class="hero__value" id="hGross">—</span>
+          <span class="hero__sub" id="hGrossSub">—</span>
+        </div>
+        <div class="hero__item hero__item--accent">
+          <span class="hero__label">Затраты компании</span>
+          <span class="hero__value" id="hCost">—</span>
+          <span class="hero__sub" id="hCostSub">—</span>
+        </div>
+        <div class="hero__item">
+          <span class="hero__label">В год</span>
+          <span class="hero__value" id="hCostYear">—</span>
+          <span class="hero__sub" id="hRatio">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">Начисление <span class="muted" id="resRegime"></span></h2>
+        <table class="table">
+          <thead><tr><th>Составляющая</th><th class="num">На руки</th><th class="num">Начислено</th></tr></thead>
+          <tbody id="incomeBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">Удержания с сотрудника</h2>
+        <table class="table">
+          <thead><tr><th>Налог / взнос</th><th class="num">Ставка</th><th class="num">Сумма</th></tr></thead>
+          <tbody id="employeeBody"></tbody>
+          <tfoot><tr><th>Итого удержано</th><td></td><td class="num" id="employeeTotal"></td></tr></tfoot>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">Отчисления работодателя</h2>
+        <table class="table">
+          <thead><tr><th>Взнос</th><th class="num">Ставка</th><th class="num">Сумма</th></tr></thead>
+          <tbody id="employerBody"></tbody>
+          <tfoot><tr><th>Итого сверх начисления</th><td></td><td class="num" id="employerTotal"></td></tr></tfoot>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">Полная стоимость сотрудника</h2>
+        <table class="table">
+          <tbody id="costBody"></tbody>
+        </table>
+        <ul id="infoNotes" class="notes notes--info"></ul>
+      </div>
+
+      <div class="row-actions row-actions--result no-print">
+        <button type="button" class="btn" id="copyBtn">Скопировать расчёт</button>
+        <button type="button" class="btn btn--ghost" id="printBtn">Печать / PDF</button>
+        <button type="button" class="btn btn--ghost" id="resetAll">Очистить</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Расчёт предполагает равномерный доход в течение года: годовые пороги (прогрессивная шкала, предельные базы) применяются как 1/12 в месяц. Ставки по умолчанию — 2026 год; перед применением сверьте их с актуальным законодательством.</p>
+    <p>Данные хранятся только в вашем браузере. Приложение работает офлайн после первой загрузки.</p>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
