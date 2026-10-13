@@ -57,16 +57,42 @@
           <span class="field__label">Оклад, нетто в месяц <em class="cur" data-cur></em></span>
           <input id="netSalary" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
         </label>
-        <label class="field">
-          <span class="field__label">Премия за проект при 100 % загрузки, нетто <em class="cur" data-cur></em></span>
-          <input id="premiumFull" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
-        </label>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">Премия за проект</h2>
+        <p class="card__sub">Процент от оклада даёт премию за месяц при полной загрузке; делённая на рабочие дни, она становится фиксированной ставкой за день на проекте.</p>
+        <div class="grid2">
+          <label class="field">
+            <span class="field__label">Премия, % от оклада</span>
+            <div class="range">
+              <input id="premiumPct" class="input input--num" type="text" inputmode="decimal" autocomplete="off" value="30">
+              <span>%</span>
+            </div>
+          </label>
+          <label class="field">
+            <span class="field__label">Рабочих дней в месяце</span>
+            <input id="workDays" class="input input--num" type="text" inputmode="decimal" autocomplete="off" value="21">
+          </label>
+        </div>
+        <div class="kv">
+          <div class="kv__item">
+            <span class="kv__label">Премия при 100 % загрузки</span>
+            <strong class="kv__value" id="premiumFullCalc">—</strong>
+            <span class="kv__sub">в месяц, нетто</span>
+          </div>
+          <div class="kv__item kv__item--accent">
+            <span class="kv__label">Ставка премии в день</span>
+            <strong class="kv__value" id="dailyRateCalc">—</strong>
+            <span class="kv__sub">за день на проекте, нетто</span>
+          </div>
+        </div>
         <div class="field">
-          <span class="field__label">Загрузка в проекте за месяц, % от полной занятости</span>
+          <span class="field__label">Дней на проекте в этом месяце</span>
           <div class="range">
-            <input id="utilizationRange" type="range" min="0" max="100" step="5" value="100">
-            <input id="utilization" class="input input--num input--short" type="text" inputmode="numeric" autocomplete="off" value="100">
-            <span>%</span>
+            <input id="projectDaysRange" type="range" min="0" max="21" step="0.5" value="21">
+            <input id="projectDays" class="input input--num input--short" type="text" inputmode="decimal" autocomplete="off" value="21">
+            <span class="muted" id="utilizationCalc">100 %</span>
           </div>
           <p class="field__hint">Премия к выплате: <strong id="premiumCalc">0</strong></p>
         </div>

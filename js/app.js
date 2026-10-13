@@ -25,8 +25,9 @@ const defaultState = () => ({
   regime: 'ru_td_general',
   regimeByCountry: { RU: 'ru_td_general', KZ: 'kz_td_our', UZ: 'uz_td_standard' },
   netSalary: 0,
-  premiumFull: 0,
-  utilization: 100,
+  premiumPct: 30,
+  workDays: 21,
+  projectDays: 21,
   kzOpvrApplies: true,
   extras: {
     telecom: { amount: 0, period: 'month' },
@@ -67,6 +68,9 @@ function loadState() {
     st.extras = { ...defaultState().extras, ...(saved.extras || {}) };
     st.regimeByCountry = { ...defaultState().regimeByCountry, ...(saved.regimeByCountry || {}) };
     if (!REGIMES[st.regime]) st.regime = st.regimeByCountry[st.country];
+    // миграция со старой модели премии (фиксированная сумма × % загрузки)
+    if (saved.premiumPct === undefined) { st.premiumPct = 30; st.workDays = 21; st.projectDays = 21; }
+    delete st.premiumFull; delete st.utilization;
   } catch { /* повреждённое хранилище — начинаем заново */ }
   return st;
 }
@@ -214,7 +218,15 @@ function bindMoney(id, get, set) {
 
 const refreshers = [];
 refreshers.push(bindMoney('netSalary', () => state.netSalary, (v) => (state.netSalary = Math.max(0, v))));
-refreshers.push(bindMoney('premiumFull', () => state.premiumFull, (v) => (state.premiumFull = Math.max(0, v))));
+{
+  const el = $('premiumPct');
+  const show = () => (el.value = pf.format(state.premiumPct));
+  show();
+  el.addEventListener('input', () => { state.premiumPct = Math.max(0, parseNum(el.value)); update(); });
+  el.addEventListener('blur', show);
+  el.addEventListener('focus', () => el.select());
+  refreshers.push(show);
+}
 for (const key of ['telecom', 'dms', 'training', 'equipment']) {
   refreshers.push(bindMoney(`${key}Amount`, () => state.extras[key].amount, (v) => (state.extras[key].amount = Math.max(0, v))));
 }
@@ -233,13 +245,29 @@ for (const key of ['telecom', 'dms', 'training']) {
   refreshers.push(show);
 }
 {
-  const range = $('utilizationRange');
-  const num = $('utilization');
-  const show = () => { range.value = String(state.utilization); num.value = String(state.utilization); };
+  const workEl = $('workDays');
+  const range = $('projectDaysRange');
+  const daysEl = $('projectDays');
+  const show = () => {
+    workEl.value = pf.format(state.workDays);
+    range.max = String(state.workDays);
+    range.value = String(state.projectDays);
+    daysEl.value = pf.format(state.projectDays);
+  };
   show();
-  range.addEventListener('input', () => { state.utilization = Number(range.value); num.value = range.value; update(); });
-  num.addEventListener('input', () => { state.utilization = Math.min(100, Math.max(0, parseNum(num.value))); range.value = String(state.utilization); update(); });
-  num.addEventListener('blur', show);
+  workEl.addEventListener('input', () => {
+    const wasFull = state.projectDays >= state.workDays;
+    state.workDays = Math.min(31, Math.max(0, parseNum(workEl.value)));
+    state.projectDays = wasFull ? state.workDays : Math.min(state.projectDays, state.workDays);
+    range.max = String(state.workDays); range.value = String(state.projectDays); daysEl.value = pf.format(state.projectDays);
+    update();
+  });
+  workEl.addEventListener('blur', show);
+  workEl.addEventListener('focus', () => workEl.select());
+  range.addEventListener('input', () => { state.projectDays = Number(range.value); daysEl.value = pf.format(state.projectDays); update(); });
+  daysEl.addEventListener('input', () => { state.projectDays = Math.min(state.workDays, Math.max(0, parseNum(daysEl.value))); range.value = String(state.projectDays); update(); });
+  daysEl.addEventListener('blur', show);
+  daysEl.addEventListener('focus', () => daysEl.select());
   refreshers.push(show);
 }
 
@@ -266,8 +294,9 @@ $('resetParams').addEventListener('click', () => {
 $('resetAll').addEventListener('click', () => {
   const d = defaultState();
   state.netSalary = d.netSalary;
-  state.premiumFull = d.premiumFull;
-  state.utilization = d.utilization;
+  state.premiumPct = d.premiumPct;
+  state.workDays = d.workDays;
+  state.projectDays = d.projectDays;
   state.extras = d.extras;
   refreshers.forEach((fn) => fn());
   update();
@@ -283,8 +312,9 @@ function update() {
     last = calculate({
       regime: state.regime,
       netSalary: state.netSalary,
-      premiumFull: state.premiumFull,
-      utilization: state.utilization,
+      premiumPct: state.premiumPct,
+      workDays: state.workDays,
+      projectDays: state.projectDays,
       extras: state.extras,
       options: { kzOpvrApplies: state.kzOpvrApplies },
       params: state.params,
@@ -319,7 +349,10 @@ function row(cells, cls) {
 function renderResult(r) {
   const sym = r.country.symbol;
   const inc = r.income;
-  $('premiumCalc').textContent = money(inc.netPremium, sym);
+  $('premiumFullCalc').textContent = money(inc.premiumFull, sym);
+  $('dailyRateCalc').textContent = money(inc.dailyRate, sym);
+  $('utilizationCalc').textContent = `${pf.format(inc.utilization)} %`;
+  $('premiumCalc').textContent = `${money(inc.netPremium, sym)} (${pf.format(inc.projectDays)} дн. × ${money(inc.dailyRate, sym)})`;
 
   $('hNet').textContent = money0(inc.netTotal, sym);
   $('hGross').textContent = money0(inc.gross, sym);
@@ -335,7 +368,7 @@ function renderResult(r) {
   ib.innerHTML = '';
   ib.append(
     row([{ text: 'Оклад' }, { text: money(inc.netSalary, sym), num: true, dl: 'На руки' }, { text: money(inc.grossSalary, sym), num: true, dl: 'Начислено' }]),
-    row([{ text: `Премия за проект (${pf.format(inc.utilization)} % × ${money(inc.premiumFull, sym)})` }, { text: money(inc.netPremium, sym), num: true, dl: 'На руки' }, { text: money(inc.grossPremium, sym), num: true, dl: 'Начислено' }]),
+    row([{ text: `Премия за проект (${inc.premiumPct} % от оклада)`, hint: `${pf.format(inc.projectDays)} из ${pf.format(inc.workDays)} дн. × ${money(inc.dailyRate, sym)}/день · загрузка ${pf.format(inc.utilization)} %` }, { text: money(inc.netPremium, sym), num: true, dl: 'На руки' }, { text: money(inc.grossPremium, sym), num: true, dl: 'Начислено' }]),
     row([{ text: 'Итого', th: true }, { text: money(inc.netTotal, sym), num: true, dl: 'На руки' }, { text: money(inc.gross, sym), num: true, dl: 'Начислено' }], 'total'),
   );
 
@@ -385,7 +418,8 @@ function resultAsText(r) {
     `Расчёт стоимости сотрудника — ${r.country.name}, ${r.regime.label}`,
     '',
     line('Оклад на руки', money(inc.netSalary, sym)),
-    line(`Премия за проект (${pf.format(inc.utilization)} % от ${money(inc.premiumFull, sym)})`, money(inc.netPremium, sym)),
+    line(`Премия за проект (${inc.premiumPct} % от оклада = ${money(inc.premiumFull, sym)} в месяц, ${money(inc.dailyRate, sym)} в день)`, ''),
+    line(`  ${pf.format(inc.projectDays)} из ${pf.format(inc.workDays)} рабочих дней, загрузка ${pf.format(inc.utilization)} %`, money(inc.netPremium, sym)),
     line('Итого на руки', money(inc.netTotal, sym)),
     line('Начислено (gross)', money(inc.gross, sym)),
     '',

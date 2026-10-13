@@ -125,12 +125,24 @@ test('gross-up: РФ 87 000 на руки → 100 000 начислено', () =>
   close(grossUp('ru_td_general', 87_000), 100_000, 0.001);
 });
 
-test('премия пропорциональна загрузке', () => {
-  const r = calculate({ regime: 'uz_td_standard', netSalary: 1000, premiumFull: 500, utilization: 60 });
-  close(r.income.netPremium, 300);
-  close(r.income.netTotal, 1300);
-  close(r.income.gross, 1300 / 0.88);
-  close(r.income.grossSalary + r.income.grossPremium, r.income.gross);
+test('премия: % от оклада → ставка в день → выплата по дням на проекте', () => {
+  const r = calculate({ regime: 'uz_td_standard', netSalary: 100_000, premiumPct: 30, workDays: 20, projectDays: 10 });
+  close(r.income.premiumFull, 30_000);
+  close(r.income.dailyRate, 1_500);
+  close(r.income.utilization, 50);
+  close(r.income.netPremium, 15_000);
+  close(r.income.netTotal, 115_000);
+  close(r.income.gross, 115_000 / 0.88, 0.02);
+  close(r.income.grossSalary + r.income.grossPremium, r.income.gross, 0.02);
+});
+
+test('премия: дней на проекте не больше рабочих, нулевые дни не ломают расчёт', () => {
+  const r = calculate({ regime: 'ru_td_general', netSalary: 100_000, premiumPct: 30, workDays: 21, projectDays: 30 });
+  close(r.income.projectDays, 21);
+  close(r.income.netPremium, 30_000);
+  const z = calculate({ regime: 'ru_td_general', netSalary: 100_000, premiumPct: 30, workDays: 0, projectDays: 0 });
+  close(z.income.dailyRate, 0);
+  close(z.income.netPremium, 0);
 });
 
 test('дополнительные затраты приводятся к месяцу', () => {
@@ -147,8 +159,9 @@ test('полный расчёт: итоговая стоимость = gross + �
   const r = calculate({
     regime: 'ru_td_general',
     netSalary: 87_000,
-    premiumFull: 0,
-    utilization: 0,
+    premiumPct: 0,
+    workDays: 21,
+    projectDays: 21,
     extras: { telecom: { amount: 1000, period: 'month' } },
   });
   close(r.income.gross, 100_000);
@@ -160,7 +173,7 @@ test('полный расчёт: итоговая стоимость = gross + �
 });
 
 test('нулевой нетто не ломает расчёт', () => {
-  const r = calculate({ regime: 'kz_td_our', netSalary: 0, premiumFull: 0, utilization: 0 });
+  const r = calculate({ regime: 'kz_td_our', netSalary: 0, premiumPct: 30, workDays: 21, projectDays: 21 });
   assert.equal(r.income.gross, 0);
   assert.equal(r.totalCost, 0);
 });

@@ -237,7 +237,10 @@ export function monthlyExtras(extras = {}) {
 /**
  * Полный расчёт карточки.
  * input = {
- *   regime, netSalary, premiumFull, utilization (0..100),
+ *   regime, netSalary,
+ *   premiumPct   — премия в % от оклада (при 100 % загрузки),
+ *   workDays     — рабочих дней в месяце по календарю,
+ *   projectDays  — дней на проекте в этом месяце,
  *   extras: { telecom:{amount,period}, dms:{...}, training:{...}, equipment:{amount,months} },
  *   options: { kzOpvrApplies, injuryRate },
  *   params
@@ -251,9 +254,13 @@ export function calculate(input) {
   const country = COUNTRIES[regime.country];
 
   const netSalary = Math.max(0, Number(input.netSalary) || 0);
-  const premiumFull = Math.max(0, Number(input.premiumFull) || 0);
-  const utilization = clamp(Number(input.utilization) || 0, 0, 100);
-  const netPremium = premiumFull * (utilization / 100);
+  const premiumPct = Math.max(0, Number(input.premiumPct) || 0);
+  const workDays = Math.max(0, Number(input.workDays) || 0);
+  const projectDays = clamp(Number(input.projectDays) || 0, 0, workDays);
+  const premiumFull = netSalary * (premiumPct / 100); // премия за месяц при 100 % загрузки
+  const dailyRate = workDays > 0 ? premiumFull / workDays : 0; // фиксированная ставка в день
+  const utilization = workDays > 0 ? (projectDays / workDays) * 100 : 0;
+  const netPremium = dailyRate * projectDays;
   const netTotal = netSalary + netPremium;
 
   const gross = grossUp(input.regime, netTotal, params, options);
@@ -273,8 +280,12 @@ export function calculate(input) {
     country: { code: regime.country, ...country },
     income: {
       netSalary: round2(netSalary),
+      premiumPct,
       premiumFull: round2(premiumFull),
-      utilization,
+      dailyRate: round2(dailyRate),
+      workDays,
+      projectDays,
+      utilization: round2(utilization),
       netPremium: round2(netPremium),
       netTotal: round2(netTotal),
       gross: round2(gross),
