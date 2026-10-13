@@ -145,6 +145,42 @@ test('премия: дней на проекте не больше рабочи�
   close(z.income.netPremium, 0);
 });
 
+test('годовой бонус: % от годового оклада, резерв 1/12 в месяц входит в gross и стоимость', () => {
+  const r = calculate({ regime: 'uz_td_standard', netSalary: 100_000, premiumPct: 0, workDays: 21, projectDays: 0, annualBonusPct: 8 });
+  close(r.income.netBonusYear, 96_000);
+  close(r.income.netBonus, 8_000);
+  close(r.income.netPay, 100_000);
+  close(r.income.netTotal, 108_000);
+  close(r.income.grossBonus, 8_000 / 0.88, 0.02);
+  close(r.income.grossBonusYear, 96_000 / 0.88, 0.2);
+  close(r.income.gross, 108_000 / 0.88, 0.02);
+  close(r.income.grossSalary + r.income.grossPremium + r.income.grossBonus, r.income.gross, 0.02);
+});
+
+test('годовой бонус по умолчанию в ядре не начисляется', () => {
+  const r = calculate({ regime: 'uz_td_standard', netSalary: 100_000, premiumPct: 0, workDays: 21, projectDays: 0 });
+  close(r.income.netBonus, 0);
+  close(r.income.gross, 100_000 / 0.88, 0.02);
+});
+
+test('gross-ставка премии в день: нетто-ставка × коэффициент gross/нетто', () => {
+  const r = calculate({ regime: 'ru_td_general', netSalary: 87_000, premiumPct: 30, workDays: 21, projectDays: 0 });
+  // без премии и бонуса: gross 100 000 при 87 000 на руки, коэффициент 1/0,87
+  close(r.income.dailyRate, 87_000 * 0.3 / 21, 0.01);
+  close(r.income.grossDailyRate, (87_000 * 0.3 / 21) / 0.87, 0.02);
+  const u = calculate({ regime: 'uz_td_standard', netSalary: 100_000, premiumPct: 30, workDays: 20, projectDays: 10 });
+  close(u.income.grossDailyRate, 1_500 / 0.88, 0.02);
+});
+
+test('строки результата несут ключи перевода, а не готовый текст', () => {
+  const r = calculate({ regime: 'kz_td_our', netSalary: 500_000, premiumPct: 30, workDays: 21, projectDays: 21, annualBonusPct: 8, extras: { equipment: { amount: 240_000, months: 24 } } });
+  for (const x of [...r.employee, ...r.employer, ...r.extras.items]) {
+    assert.match(x.labelKey, /^(tax|extras)\./);
+    assert.equal(x.label, undefined);
+  }
+  assert.deepEqual(r.employee.find((x) => x.key === 'opv').hint, { key: 'hint.capMzp', vars: { n: 50 } });
+});
+
 test('дополнительные затраты приводятся к месяцу', () => {
   const e = monthlyExtras({
     telecom: { amount: 1200, period: 'month' },

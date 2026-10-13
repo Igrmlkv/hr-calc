@@ -62,8 +62,28 @@ a:hover { color: var(--mp-primary-dark); }
   border-radius: var(--mp-radius-button-pill); background: var(--mp-ok-bg); color: var(--mp-ok);
 }
 .badge--off { background: var(--mp-warn-bg); color: var(--mp-warn); }
+/* Переключатель языка */
+.lang { display: inline-flex; border: 1.5px solid var(--mp-primary); border-radius: var(--mp-radius-button-pill); overflow: hidden; flex: none; }
+.lang__btn {
+  font-family: inherit; font-size: 13px; font-weight: 500; padding: 5px 11px; border: 0; cursor: pointer;
+  background: var(--mp-surface); color: var(--mp-primary); transition: background .16s ease, color .16s ease;
+}
+.lang__btn + .lang__btn { border-left: 1.5px solid var(--mp-primary); }
+.lang__btn[aria-pressed="true"] { background: var(--mp-primary); color: #fff; }
+.lang__btn:focus-visible { outline: 2px solid var(--mp-primary-light); outline-offset: 2px; }
+
 @media (max-width: 520px) {
   .brand__sub { display: none; }
+  .brand__logo { height: 24px; }
+  .brand__name { font-size: 15px; }
+  #netStatus { display: none; }
+}
+@media (max-width: 360px) {
+  .topbar__inner { gap: 8px; }
+  .brand { gap: 8px; }
+  .brand__logo { height: 20px; }
+  .brand__name { font-size: 14px; }
+  .lang__btn { padding: 5px 9px; }
   .topbar .btn { padding: 8px 14px; font-size: 14px; }
 }
 
@@ -140,7 +160,9 @@ select.input { appearance: auto; }
 .kv__label { font-size: 12px; color: var(--mp-text-muted); }
 .kv__value { font-size: 16px; font-weight: 600; color: var(--mp-black); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .kv__item--accent .kv__value { color: var(--mp-primary); }
-.kv__sub { font-size: 12px; color: var(--mp-text-muted); }
+.kv__sub { font-size: 12px; color: var(--mp-text-muted); overflow-wrap: anywhere; }
+.kv--last { margin-bottom: 0; }
+.range--narrow { max-width: 220px; }
 @media (max-width: 360px) { .grid2 { grid-template-columns: 1fr; } .kv__value { font-size: 15px; } }
 
 /* Доп. затраты */
@@ -152,6 +174,11 @@ select.input { appearance: auto; }
   .extra .field__label { grid-column: 1 / -1; }
   .extra--eq .input--num { grid-column: 1 / -1; }
   .extra--eq .extra__months { grid-column: 1 / -1; justify-content: flex-end; }
+}
+
+@media (max-width: 360px) {
+  .extra, .extra--eq { grid-template-columns: minmax(0, 1fr); }
+  .extra .input--period { width: 100%; }
 }
 
 /* Параметры */
@@ -203,6 +230,8 @@ select.input { appearance: auto; }
 .table .hint { display: block; font-size: 12px; color: var(--mp-text-muted); white-space: normal; }
 .table .total td, .table .total th { font-weight: 600; color: var(--mp-black); border-top: 2px solid var(--mp-border); }
 .table .grand td, .table .grand th { font-weight: 600; font-size: 15px; color: var(--mp-primary); background: var(--mp-primary-surface); }
+.table .ref td, .table .ref th { color: var(--mp-text-muted); font-size: 13px; border-bottom: 0; }
+.table .ref td:first-child { color: var(--mp-text); }
 .table--brackets td { padding: 4px; }
 .table--brackets .input { min-height: 36px; padding: 5px 8px; font-size: 14px; }
 

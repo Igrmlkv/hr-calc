@@ -5,89 +5,21 @@
 export const PARAMS_VERSION = '2026-01';
 
 export const COUNTRIES = {
-  RU: { name: 'Россия', currency: 'RUB', symbol: '₽' },
-  KZ: { name: 'Казахстан', currency: 'KZT', symbol: '₸' },
-  UZ: { name: 'Узбекистан', currency: 'UZS', symbol: 'сум' },
+  RU: { currency: 'RUB' },
+  KZ: { currency: 'KZT' },
+  UZ: { currency: 'UZS' },
 };
 
+// Тексты режимов (название, краткое название, пояснения) — в js/i18n.js: regime.<id>.*
 export const REGIMES = {
-  ru_td_general: {
-    country: 'RU',
-    label: 'Трудовой договор, общий тариф взносов',
-    short: 'ТД, общий тариф',
-    notes: [
-      'НДФЛ по прогрессивной шкале (13–22 %), ставка определяется по годовому доходу.',
-      'Страховые взносы по единому тарифу 30 % до предельной базы и 15,1 % сверх неё.',
-      'Взносы на травматизм (класс риска I — 0,2 %).',
-    ],
-  },
-  ru_td_it: {
-    country: 'RU',
-    label: 'Трудовой договор, аккредитованная ИТ-компания',
-    short: 'ТД, ИТ-компания',
-    notes: [
-      'НДФЛ по прогрессивной шкале (13–22 %).',
-      'Пониженный тариф взносов 7,6 % до предельной базы и 15 % сверх неё (с 2026 г.).',
-      'Взносы на травматизм 0,2 %.',
-    ],
-  },
-  ru_gph: {
-    country: 'RU',
-    label: 'Договор ГПХ (подряд / услуги)',
-    short: 'ГПХ',
-    notes: [
-      'НДФЛ по прогрессивной шкале (13–22 %).',
-      'Страховые взносы по единому тарифу 30 % / 15,1 % (включая ВНиМ с 2023 г.).',
-      'Взносы на травматизм не начисляются, если договором не предусмотрено иное.',
-      'Отпускные и больничные не положены — учтите это при сравнении с ТД.',
-    ],
-  },
-  kz_td_our: {
-    country: 'KZ',
-    label: 'Трудовой договор, работодатель на общеустановленном режиме',
-    short: 'ТД, ОУР',
-    notes: [
-      'Удержания: ОПВ 10 %, ВОСМС 2 %, ИПН 10 % (15 % с превышения 8 500 МРП в год) после стандартного вычета 30 МРП.',
-      'Работодатель: ОПВР 3,5 %, ООСМС 3 %, СО 5 %, СН 11 % (за минусом СО).',
-    ],
-  },
-  kz_td_simplified: {
-    country: 'KZ',
-    label: 'Трудовой договор, работодатель на упрощённой декларации',
-    short: 'ТД, упрощёнка',
-    notes: [
-      'Удержания с сотрудника те же, что и на ОУР.',
-      'Работодатель на СНР по упрощённой декларации не платит социальный налог за работников.',
-      'Остальные отчисления (ОПВР, ООСМС, СО) уплачиваются.',
-    ],
-  },
-  kz_gph: {
-    country: 'KZ',
-    label: 'Договор ГПХ',
-    short: 'ГПХ',
-    notes: [
-      'Удержания: ОПВ 10 %, ВОСМС 2 %, ИПН 10 % (стандартный вычет 30 МРП по умолчанию не применяется).',
-      'Заказчик уплачивает ОПВР 3,5 %. СО, ООСМС и СН по ГПХ не начисляются.',
-    ],
-  },
-  uz_td_standard: {
-    country: 'UZ',
-    label: 'Трудовой договор, стандартный режим',
-    short: 'ТД, стандарт',
-    notes: [
-      'НДФЛ 12 % (в том числе 0,1 % — отчисления на ИНПС внутри НДФЛ).',
-      'Социальный налог работодателя 12 %.',
-    ],
-  },
-  uz_td_itpark: {
-    country: 'UZ',
-    label: 'Трудовой договор, резидент IT Park',
-    short: 'ТД, IT Park',
-    notes: [
-      'НДФЛ 7,5 % для сотрудников резидентов IT Park.',
-      'Резиденты IT Park освобождены от социального налога.',
-    ],
-  },
+  ru_td_general: { country: 'RU' },
+  ru_td_it: { country: 'RU' },
+  ru_gph: { country: 'RU' },
+  kz_td_our: { country: 'KZ' },
+  kz_td_simplified: { country: 'KZ' },
+  kz_gph: { country: 'KZ' },
+  uz_td_standard: { country: 'UZ' },
+  uz_td_itpark: { country: 'UZ' },
 };
 
 export function regimesForCountry(country) {
@@ -144,45 +76,45 @@ export const DEFAULT_PARAMS = {
   },
 };
 
-// Описание редактируемых полей для панели «Параметры расчёта».
+// Описание редактируемых полей для панели «Параметры расчёта». Подписи — в i18n: param.<key>.
 // type: 'pct' — процент (хранится как доля), 'money' — сумма, 'int' — целое, 'bool'.
 export const PARAM_FIELDS = {
   RU: [
-    { key: 'contribBaseLimit', label: 'Предельная база по взносам (год)', type: 'money' },
-    { key: 'generalBelow', label: 'Общий тариф взносов до базы', type: 'pct' },
-    { key: 'generalAbove', label: 'Общий тариф взносов сверх базы', type: 'pct' },
-    { key: 'itBelow', label: 'ИТ-тариф до базы', type: 'pct' },
-    { key: 'itAbove', label: 'ИТ-тариф сверх базы', type: 'pct' },
-    { key: 'injuryRate', label: 'Травматизм (класс риска)', type: 'pct' },
-    { key: 'mrot', label: 'МРОТ (справочно)', type: 'money' },
+    { key: 'contribBaseLimit', type: 'money' },
+    { key: 'generalBelow', type: 'pct' },
+    { key: 'generalAbove', type: 'pct' },
+    { key: 'itBelow', type: 'pct' },
+    { key: 'itAbove', type: 'pct' },
+    { key: 'injuryRate', type: 'pct' },
+    { key: 'mrot', type: 'money' },
   ],
   KZ: [
-    { key: 'mrp', label: 'МРП', type: 'money' },
-    { key: 'mzp', label: 'МЗП', type: 'money' },
-    { key: 'ipnRate', label: 'ИПН, базовая ставка', type: 'pct' },
-    { key: 'ipnHighRate', label: 'ИПН с превышения порога', type: 'pct' },
-    { key: 'ipnHighThresholdMrp', label: 'Порог ИПН, МРП в год', type: 'int' },
-    { key: 'stdDeductionMrp', label: 'Стандартный вычет, МРП', type: 'int' },
-    { key: 'stdDeductionForGph', label: 'Применять вычет к ГПХ', type: 'bool' },
-    { key: 'opvRate', label: 'ОПВ', type: 'pct' },
-    { key: 'opvCapMzp', label: 'Предел базы ОПВ, МЗП', type: 'int' },
-    { key: 'vosmsRate', label: 'ВОСМС', type: 'pct' },
-    { key: 'vosmsCapMzp', label: 'Предел базы ВОСМС, МЗП', type: 'int' },
-    { key: 'opvrRate', label: 'ОПВР', type: 'pct' },
-    { key: 'opvrCapMzp', label: 'Предел базы ОПВР, МЗП', type: 'int' },
-    { key: 'oosmsRate', label: 'ООСМС', type: 'pct' },
-    { key: 'oosmsCapMzp', label: 'Предел базы ООСМС, МЗП', type: 'int' },
-    { key: 'soRate', label: 'СО', type: 'pct' },
-    { key: 'soMinMzp', label: 'Мин. база СО, МЗП', type: 'int' },
-    { key: 'soCapMzp', label: 'Предел базы СО, МЗП', type: 'int' },
-    { key: 'snRate', label: 'СН', type: 'pct' },
+    { key: 'mrp', type: 'money' },
+    { key: 'mzp', type: 'money' },
+    { key: 'ipnRate', type: 'pct' },
+    { key: 'ipnHighRate', type: 'pct' },
+    { key: 'ipnHighThresholdMrp', type: 'int' },
+    { key: 'stdDeductionMrp', type: 'int' },
+    { key: 'stdDeductionForGph', type: 'bool' },
+    { key: 'opvRate', type: 'pct' },
+    { key: 'opvCapMzp', type: 'int' },
+    { key: 'vosmsRate', type: 'pct' },
+    { key: 'vosmsCapMzp', type: 'int' },
+    { key: 'opvrRate', type: 'pct' },
+    { key: 'opvrCapMzp', type: 'int' },
+    { key: 'oosmsRate', type: 'pct' },
+    { key: 'oosmsCapMzp', type: 'int' },
+    { key: 'soRate', type: 'pct' },
+    { key: 'soMinMzp', type: 'int' },
+    { key: 'soCapMzp', type: 'int' },
+    { key: 'snRate', type: 'pct' },
   ],
   UZ: [
-    { key: 'ndflStandard', label: 'НДФЛ, стандарт', type: 'pct' },
-    { key: 'socialStandard', label: 'Соцналог, стандарт', type: 'pct' },
-    { key: 'ndflItPark', label: 'НДФЛ, IT Park', type: 'pct' },
-    { key: 'socialItPark', label: 'Соцналог, IT Park', type: 'pct' },
-    { key: 'inpsRate', label: 'ИНПС (внутри НДФЛ, справочно)', type: 'pct' },
+    { key: 'ndflStandard', type: 'pct' },
+    { key: 'socialStandard', type: 'pct' },
+    { key: 'ndflItPark', type: 'pct' },
+    { key: 'socialItPark', type: 'pct' },
+    { key: 'inpsRate', type: 'pct' },
   ],
 };
 

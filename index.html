@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>HR Calc — калькулятор стоимости сотрудника</title>
+  <title>HR Калькулятор — стоимость сотрудника</title>
   <meta name="description" content="Расчёт от суммы на руки: начисление, налоги, взносы и полные затраты компании для РФ, Казахстана и Узбекистана.">
   <meta name="theme-color" content="#A01441">
   <meta name="color-scheme" content="light">
-  <meta name="application-name" content="HR Calc">
+  <meta name="application-name" content="HR Калькулятор">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="HR Calc">
+  <meta name="apple-mobile-web-app-title" content="HR Калькулятор">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -22,29 +22,33 @@
       <a class="brand" href="./">
         <img class="brand__logo" src="icons/msgplaut-logo.svg" alt="msg Plaut">
         <span class="brand__text">
-          <span class="brand__name">HR Calc</span>
-          <span class="brand__sub">стоимость сотрудника · 2026</span>
+          <span class="brand__name" data-i18n="app.name">HR Калькулятор</span>
+          <span class="brand__sub" data-i18n="app.sub">стоимость сотрудника · 2026</span>
         </span>
       </a>
       <div class="topbar__actions">
-        <span id="netStatus" class="badge badge--ok" title="Состояние сети">онлайн</span>
-        <button id="installBtn" class="btn btn--ghost" type="button" hidden>Установить приложение</button>
+        <span id="netStatus" class="badge badge--ok" data-i18n-title="net.title">онлайн</span>
+        <button id="installBtn" class="btn btn--ghost" type="button" data-i18n="install" hidden>Установить приложение</button>
+        <div class="lang" role="group" data-i18n-aria="lang.label">
+          <button type="button" class="lang__btn" data-lang="ru" lang="ru">RU</button>
+          <button type="button" class="lang__btn" data-lang="en" lang="en">EN</button>
+        </div>
       </div>
     </div>
   </header>
 
   <main class="layout">
     <!-- ===== Ввод ===== -->
-    <section class="panel panel--form" aria-label="Исходные данные">
+    <section class="panel panel--form" data-i18n-aria="aria.form">
       <div class="card">
-        <h2 class="card__title">Страна и режим</h2>
-        <div class="seg" id="countrySeg" role="tablist" aria-label="Страна">
-          <button type="button" class="seg__btn" data-country="RU" role="tab">Россия</button>
-          <button type="button" class="seg__btn" data-country="KZ" role="tab">Казахстан</button>
-          <button type="button" class="seg__btn" data-country="UZ" role="tab">Узбекистан</button>
+        <h2 class="card__title" data-i18n="card.country">Страна и режим</h2>
+        <div class="seg" id="countrySeg" role="tablist" data-i18n-aria="aria.country">
+          <button type="button" class="seg__btn" data-country="RU" role="tab" data-i18n="country.RU">Россия</button>
+          <button type="button" class="seg__btn" data-country="KZ" role="tab" data-i18n="country.KZ">Казахстан</button>
+          <button type="button" class="seg__btn" data-country="UZ" role="tab" data-i18n="country.UZ">Узбекистан</button>
         </div>
         <label class="field">
-          <span class="field__label">Форма оформления</span>
+          <span class="field__label" data-i18n="field.regime">Форма оформления</span>
           <select id="regime" class="input"></select>
         </label>
         <ul id="regimeNotes" class="notes"></ul>
@@ -52,144 +56,168 @@
       </div>
 
       <div class="card">
-        <h2 class="card__title">Доход сотрудника (на руки)</h2>
+        <h2 class="card__title" data-i18n="card.income">Доход сотрудника (на руки)</h2>
         <label class="field">
-          <span class="field__label">Оклад, нетто в месяц <em class="cur" data-cur></em></span>
+          <span class="field__label"><span data-i18n="field.netSalary">Оклад, нетто в месяц</span> <em class="cur" data-cur></em></span>
           <input id="netSalary" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
         </label>
       </div>
 
       <div class="card">
-        <h2 class="card__title">Премия за проект</h2>
-        <p class="card__sub">Процент от оклада даёт премию за месяц при полной загрузке; делённая на рабочие дни, она становится фиксированной ставкой за день на проекте.</p>
+        <h2 class="card__title" data-i18n="card.premium">Премия за проект</h2>
+        <p class="card__sub" data-i18n="premium.sub"></p>
         <div class="grid2">
           <label class="field">
-            <span class="field__label">Премия, % от оклада</span>
-            <div class="range">
+            <span class="field__label" data-i18n="field.premiumPct">Премия, % от оклада</span>
+            <span class="range">
               <input id="premiumPct" class="input input--num" type="text" inputmode="decimal" autocomplete="off" value="30">
               <span>%</span>
-            </div>
+            </span>
           </label>
           <label class="field">
-            <span class="field__label">Рабочих дней в месяце</span>
+            <span class="field__label" data-i18n="field.workDays">Рабочих дней в месяце</span>
             <input id="workDays" class="input input--num" type="text" inputmode="decimal" autocomplete="off" value="21">
           </label>
         </div>
         <div class="kv">
           <div class="kv__item">
-            <span class="kv__label">Премия при 100 % загрузки</span>
+            <span class="kv__label" data-i18n="kv.premiumFull">Премия при 100 % загрузки</span>
             <strong class="kv__value" id="premiumFullCalc">—</strong>
-            <span class="kv__sub">в месяц, нетто</span>
+            <span class="kv__sub" data-i18n="kv.premiumFullSub">в месяц, нетто</span>
           </div>
           <div class="kv__item kv__item--accent">
-            <span class="kv__label">Ставка премии в день</span>
+            <span class="kv__label" data-i18n="kv.dailyRate">Ставка премии в день</span>
             <strong class="kv__value" id="dailyRateCalc">—</strong>
-            <span class="kv__sub">за день на проекте, нетто</span>
+            <span class="kv__sub" id="dailyRateGrossCalc">—</span>
           </div>
         </div>
         <div class="field">
-          <span class="field__label">Дней на проекте в этом месяце</span>
+          <span class="field__label" data-i18n="field.projectDays">Дней на проекте в этом месяце</span>
           <div class="range">
             <input id="projectDaysRange" type="range" min="0" max="21" step="0.5" value="21">
             <input id="projectDays" class="input input--num input--short" type="text" inputmode="decimal" autocomplete="off" value="21">
             <span class="muted" id="utilizationCalc">100 %</span>
           </div>
-          <p class="field__hint">Премия к выплате: <strong id="premiumCalc">0</strong></p>
+          <p class="field__hint"><span data-i18n="premium.payout">Премия к выплате:</span> <strong id="premiumCalc">0</strong></p>
         </div>
       </div>
 
       <div class="card">
-        <h2 class="card__title">Дополнительные затраты компании</h2>
-        <p class="card__sub">Не входят в зарплату и не облагаются в расчёте. Приводятся к месячной сумме.</p>
+        <h2 class="card__title" data-i18n="card.bonus">Годовой бонус</h2>
+        <p class="card__sub" data-i18n="bonus.sub"></p>
+        <label class="field">
+          <span class="field__label" data-i18n="field.bonusPct">Бонус, % от годового оклада</span>
+          <span class="range range--narrow">
+            <input id="annualBonusPct" class="input input--num" type="text" inputmode="decimal" autocomplete="off" value="8">
+            <span>%</span>
+          </span>
+        </label>
+        <div class="kv kv--last">
+          <div class="kv__item">
+            <span class="kv__label" data-i18n="kv.bonusYear">Бонус за год</span>
+            <strong class="kv__value" id="bonusYearCalc">—</strong>
+            <span class="kv__sub" id="bonusYearGrossCalc">—</span>
+          </div>
+          <div class="kv__item">
+            <span class="kv__label" data-i18n="kv.bonusMonth">Резерв в месяц</span>
+            <strong class="kv__value" id="bonusMonthCalc">—</strong>
+            <span class="kv__sub" id="bonusMonthGrossCalc">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title" data-i18n="card.extras">Дополнительные затраты компании</h2>
+        <p class="card__sub" data-i18n="extras.sub"></p>
         <div class="extra">
-          <span class="field__label">Связь</span>
+          <span class="field__label" data-i18n="extras.telecom">Связь</span>
           <input id="telecomAmount" class="input input--num" type="text" inputmode="decimal" placeholder="0">
-          <select id="telecomPeriod" class="input input--period"><option value="month">в месяц</option><option value="year">в год</option></select>
+          <select id="telecomPeriod" class="input input--period"><option value="month" data-i18n="period.month">в месяц</option><option value="year" data-i18n="period.year">в год</option></select>
         </div>
         <div class="extra">
-          <span class="field__label">ДМС</span>
+          <span class="field__label" data-i18n="extras.dms">ДМС</span>
           <input id="dmsAmount" class="input input--num" type="text" inputmode="decimal" placeholder="0">
-          <select id="dmsPeriod" class="input input--period"><option value="year">в год</option><option value="month">в месяц</option></select>
+          <select id="dmsPeriod" class="input input--period"><option value="year" data-i18n="period.year">в год</option><option value="month" data-i18n="period.month">в месяц</option></select>
         </div>
         <div class="extra">
-          <span class="field__label">Обучение</span>
+          <span class="field__label" data-i18n="extras.training">Обучение</span>
           <input id="trainingAmount" class="input input--num" type="text" inputmode="decimal" placeholder="0">
-          <select id="trainingPeriod" class="input input--period"><option value="year">в год</option><option value="month">в месяц</option></select>
+          <select id="trainingPeriod" class="input input--period"><option value="year" data-i18n="period.year">в год</option><option value="month" data-i18n="period.month">в месяц</option></select>
         </div>
         <div class="extra extra--eq">
-          <span class="field__label">Оборудование</span>
-          <input id="equipmentAmount" class="input input--num" type="text" inputmode="decimal" placeholder="стоимость">
-          <label class="extra__months">на <input id="equipmentMonths" class="input input--num input--short" type="text" inputmode="numeric" value="24"> мес.</label>
+          <span class="field__label" data-i18n="extras.equipment">Оборудование</span>
+          <input id="equipmentAmount" class="input input--num" type="text" inputmode="decimal" data-i18n-ph="extras.costPlaceholder" placeholder="стоимость">
+          <label class="extra__months"><span data-i18n="extras.over">на</span> <input id="equipmentMonths" class="input input--num input--short" type="text" inputmode="numeric" value="24"> <span data-i18n="extras.months">мес.</span></label>
         </div>
       </div>
 
       <details class="card card--details" id="paramsDetails">
-        <summary class="card__title">Параметры расчёта <span class="muted" id="paramsCountryLabel"></span></summary>
-        <p class="card__sub">Ставки и пороги по умолчанию — на 2026 год. Изменения сохраняются в браузере.</p>
+        <summary class="card__title"><span data-i18n="card.params">Параметры расчёта</span> <span class="muted" id="paramsCountryLabel"></span></summary>
+        <p class="card__sub" data-i18n="params.sub"></p>
         <div id="paramsForm" class="params"></div>
         <div id="bracketsBlock" class="brackets" hidden>
-          <h3 class="h3">Шкала НДФЛ (годовой доход)</h3>
+          <h3 class="h3" data-i18n="params.brackets">Шкала НДФЛ (годовой доход)</h3>
           <table class="table table--brackets"><tbody id="bracketsBody"></tbody></table>
         </div>
         <div class="row-actions">
-          <button type="button" class="btn btn--ghost" id="resetParams">Вернуть значения 2026</button>
+          <button type="button" class="btn btn--ghost" id="resetParams" data-i18n="params.reset">Вернуть значения 2026</button>
         </div>
       </details>
     </section>
 
     <!-- ===== Результат ===== -->
-    <section class="panel panel--result" aria-label="Результат расчёта" id="result">
+    <section class="panel panel--result" data-i18n-aria="aria.result" id="result">
       <div class="hero">
         <div class="hero__item">
-          <span class="hero__label">На руки</span>
+          <span class="hero__label" data-i18n="hero.net">На руки</span>
           <span class="hero__value" id="hNet">—</span>
-          <span class="hero__sub">в месяц</span>
+          <span class="hero__sub" id="hNetSub">—</span>
         </div>
         <div class="hero__item">
-          <span class="hero__label">Начислено (gross)</span>
+          <span class="hero__label" data-i18n="hero.gross">Начислено (gross)</span>
           <span class="hero__value" id="hGross">—</span>
           <span class="hero__sub" id="hGrossSub">—</span>
         </div>
         <div class="hero__item hero__item--accent">
-          <span class="hero__label">Затраты компании</span>
+          <span class="hero__label" data-i18n="hero.cost">Затраты компании</span>
           <span class="hero__value" id="hCost">—</span>
           <span class="hero__sub" id="hCostSub">—</span>
         </div>
         <div class="hero__item">
-          <span class="hero__label">В год</span>
+          <span class="hero__label" data-i18n="hero.year">В год</span>
           <span class="hero__value" id="hCostYear">—</span>
           <span class="hero__sub" id="hRatio">—</span>
         </div>
       </div>
 
       <div class="card">
-        <h2 class="card__title">Начисление <span class="muted" id="resRegime"></span></h2>
+        <h2 class="card__title"><span data-i18n="card.accrual">Начисление</span> <span class="muted" id="resRegime"></span></h2>
         <table class="table table--stack">
-          <thead><tr><th>Составляющая</th><th class="num">На руки</th><th class="num">Начислено</th></tr></thead>
+          <thead><tr><th data-i18n="th.component">Составляющая</th><th class="num" data-i18n="th.net">На руки</th><th class="num" data-i18n="th.gross">Начислено</th></tr></thead>
           <tbody id="incomeBody"></tbody>
         </table>
       </div>
 
       <div class="card">
-        <h2 class="card__title">Удержания с сотрудника</h2>
+        <h2 class="card__title" data-i18n="card.employee">Удержания с сотрудника</h2>
         <table class="table table--stack">
-          <thead><tr><th>Налог / взнос</th><th class="num">Ставка</th><th class="num">Сумма</th></tr></thead>
+          <thead><tr><th data-i18n="th.tax">Налог / взнос</th><th class="num" data-i18n="th.rate">Ставка</th><th class="num" data-i18n="th.amount">Сумма</th></tr></thead>
           <tbody id="employeeBody"></tbody>
-          <tfoot><tr><th>Итого удержано</th><td></td><td class="num" id="employeeTotal" data-label="Сумма"></td></tr></tfoot>
+          <tfoot><tr><th data-i18n="total.withheld">Итого удержано</th><td></td><td class="num" id="employeeTotal" data-i18n-label="th.amount"></td></tr></tfoot>
         </table>
       </div>
 
       <div class="card">
-        <h2 class="card__title">Отчисления работодателя</h2>
+        <h2 class="card__title" data-i18n="card.employer">Отчисления работодателя</h2>
         <table class="table table--stack">
-          <thead><tr><th>Взнос</th><th class="num">Ставка</th><th class="num">Сумма</th></tr></thead>
+          <thead><tr><th data-i18n="th.charge">Взнос</th><th class="num" data-i18n="th.rate">Ставка</th><th class="num" data-i18n="th.amount">Сумма</th></tr></thead>
           <tbody id="employerBody"></tbody>
-          <tfoot><tr><th>Итого сверх начисления</th><td></td><td class="num" id="employerTotal" data-label="Сумма"></td></tr></tfoot>
+          <tfoot><tr><th data-i18n="total.employer">Итого сверх начисления</th><td></td><td class="num" id="employerTotal" data-i18n-label="th.amount"></td></tr></tfoot>
         </table>
       </div>
 
       <div class="card">
-        <h2 class="card__title">Полная стоимость сотрудника</h2>
+        <h2 class="card__title" data-i18n="card.cost">Полная стоимость сотрудника</h2>
         <table class="table table--stack">
           <tbody id="costBody"></tbody>
         </table>
@@ -197,17 +225,17 @@
       </div>
 
       <div class="row-actions row-actions--result no-print">
-        <button type="button" class="btn" id="copyBtn">Скопировать расчёт</button>
-        <button type="button" class="btn btn--ghost" id="printBtn">Печать / PDF</button>
-        <button type="button" class="btn btn--ghost" id="resetAll">Очистить</button>
+        <button type="button" class="btn" id="copyBtn" data-i18n="btn.copy">Скопировать расчёт</button>
+        <button type="button" class="btn btn--ghost" id="printBtn" data-i18n="btn.print">Печать / PDF</button>
+        <button type="button" class="btn btn--ghost" id="resetAll" data-i18n="btn.reset">Очистить</button>
       </div>
     </section>
   </main>
 
   <footer class="footer">
-    <p>Расчёт предполагает равномерный доход в течение года: годовые пороги (прогрессивная шкала, предельные базы) применяются как 1/12 в месяц. Ставки по умолчанию — 2026 год; перед применением сверьте их с актуальным законодательством.</p>
-    <p>Данные хранятся только в вашем браузере. Приложение работает офлайн после первой загрузки.</p>
-    <div class="footer__brand"><img src="icons/msgplaut-logo.svg" alt="msg Plaut"><span>Внутренний инструмент msg Plaut</span></div>
+    <p data-i18n="footer.assumption"></p>
+    <p data-i18n="footer.storage"></p>
+    <div class="footer__brand"><img src="icons/msgplaut-logo.svg" alt="msg Plaut"><span data-i18n="footer.brand">Внутренний инструмент msg Plaut</span></div>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

@@ -1,4 +1,6 @@
 // Ядро расчёта. Чистые функции без зависимостей от DOM — используются и в браузере, и в тестах.
+// Тексты не формируются здесь: строки результата несут ключ перевода (labelKey, hint.key, info[].key)
+// и параметры (vars), которые интерфейс переводит и форматирует на выбранном языке.
 import { DEFAULT_PARAMS, REGIMES, COUNTRIES } from './params.js';
 
 const round2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
@@ -68,28 +70,28 @@ function computeRU(regimeId, gross, p, options) {
   const employee = [
     {
       key: 'ndfl',
-      label: 'НДФЛ',
+      labelKey: 'tax.ndfl',
       rate: effective,
       amount: ndfl,
-      hint: 'Прогрессивная шкала по годовому доходу',
+      hint: { key: 'hint.ndflProgressive' },
     },
   ];
   const employer = [
     {
       key: 'contrib',
-      label: isIt ? 'Страховые взносы (ИТ-тариф)' : 'Страховые взносы (единый тариф)',
+      labelKey: isIt ? 'tax.contribIt' : 'tax.contrib',
       rate: gross > 0 ? contrib / gross : below,
       amount: contrib,
-      hint: overBase > 0 ? `Сверх предельной базы: ${fmtPct(above)}` : `В пределах базы: ${fmtPct(below)}`,
+      hint: overBase > 0 ? { key: 'hint.contribOver', vars: { rate: above } } : { key: 'hint.contribWithin', vars: { rate: below } },
     },
   ];
   const isTd = regimeId !== 'ru_gph';
   const injuryRate = options.injuryRate ?? p.injuryRate;
   if (isTd) {
-    employer.push({ key: 'injury', label: 'Взносы на травматизм', rate: injuryRate, amount: gross * injuryRate });
+    employer.push({ key: 'injury', labelKey: 'tax.injury', rate: injuryRate, amount: gross * injuryRate });
   }
   const info = [];
-  if (overBase > 0) info.push('Доход превышает 1/12 предельной базы по взносам — применён тариф сверх базы.');
+  if (overBase > 0) info.push({ key: 'info.ruOverBase' });
   return finish(gross, employee, employer, info);
 }
 
@@ -111,16 +113,16 @@ function computeKZ(regimeId, gross, p, options) {
   const ipn = annualIpn / 12;
 
   const employee = [
-    { key: 'opv', label: 'ОПВ', rate: p.opvRate, amount: opv, hint: `База не более ${p.opvCapMzp} МЗП` },
-    { key: 'vosms', label: 'ВОСМС', rate: p.vosmsRate, amount: vosms, hint: `База не более ${p.vosmsCapMzp} МЗП` },
+    { key: 'opv', labelKey: 'tax.opv', rate: p.opvRate, amount: opv, hint: { key: 'hint.capMzp', vars: { n: p.opvCapMzp } } },
+    { key: 'vosms', labelKey: 'tax.vosms', rate: p.vosmsRate, amount: vosms, hint: { key: 'hint.capMzp', vars: { n: p.vosmsCapMzp } } },
     {
       key: 'ipn',
-      label: 'ИПН',
+      labelKey: 'tax.ipn',
       rate: taxable > 0 ? ipn / taxable : p.ipnRate,
       amount: ipn,
       hint: useDeduction
-        ? `База: доход − ОПВ − ВОСМС − вычет ${p.stdDeductionMrp} МРП`
-        : 'База: доход − ОПВ − ВОСМС (без стандартного вычета)',
+        ? { key: 'hint.ipnDeduction', vars: { n: p.stdDeductionMrp } }
+        : { key: 'hint.ipnNoDeduction' },
     },
   ];
 
@@ -128,29 +130,29 @@ function computeKZ(regimeId, gross, p, options) {
   if (opvrApplies) {
     employer.push({
       key: 'opvr',
-      label: 'ОПВР',
+      labelKey: 'tax.opvr',
       rate: p.opvrRate,
       amount: Math.min(gross, p.opvrCapMzp * p.mzp) * p.opvrRate,
-      hint: 'За сотрудников 1975 г. р. и младше',
+      hint: { key: 'hint.opvr' },
     });
   }
   let so = 0;
   if (isTd) {
     employer.push({
       key: 'oosms',
-      label: 'ООСМС',
+      labelKey: 'tax.oosms',
       rate: p.oosmsRate,
       amount: Math.min(gross, p.oosmsCapMzp * p.mzp) * p.oosmsRate,
-      hint: `База не более ${p.oosmsCapMzp} МЗП`,
+      hint: { key: 'hint.capMzp', vars: { n: p.oosmsCapMzp } },
     });
     const soBase = gross > 0 ? clamp(gross - opv, p.soMinMzp * p.mzp, p.soCapMzp * p.mzp) : 0;
     so = soBase * p.soRate;
     employer.push({
       key: 'so',
-      label: 'Социальные отчисления (СО)',
+      labelKey: 'tax.so',
       rate: p.soRate,
       amount: so,
-      hint: `База: доход − ОПВ, от ${p.soMinMzp} до ${p.soCapMzp} МЗП`,
+      hint: { key: 'hint.so', vars: { min: p.soMinMzp, max: p.soCapMzp } },
     });
   }
   if (regimeId === 'kz_td_our') {
@@ -158,15 +160,15 @@ function computeKZ(regimeId, gross, p, options) {
     const sn = Math.max(0, snBase * p.snRate - so);
     employer.push({
       key: 'sn',
-      label: 'Социальный налог (СН)',
+      labelKey: 'tax.sn',
       rate: p.snRate,
       amount: sn,
-      hint: 'База: доход − ОПВ − ВОСМС; к уплате за минусом СО',
+      hint: { key: 'hint.sn' },
     });
   }
   const info = [];
-  if (annualTaxable > threshold) info.push(`Годовой облагаемый доход превышает ${p.ipnHighThresholdMrp} МРП — к превышению применена ставка ИПН ${fmtPct(p.ipnHighRate)}.`);
-  if (regimeId === 'kz_td_simplified') info.push('Работодатель на упрощённой декларации: СН за работников не уплачивается.');
+  if (annualTaxable > threshold) info.push({ key: 'info.kzIpnHigh', vars: { n: p.ipnHighThresholdMrp, rate: p.ipnHighRate } });
+  if (regimeId === 'kz_td_simplified') info.push({ key: 'info.kzSimplified' });
   return finish(gross, employee, employer, info);
 }
 
@@ -177,16 +179,16 @@ function computeUZ(regimeId, gross, p) {
   const employee = [
     {
       key: 'ndfl',
-      label: 'НДФЛ',
+      labelKey: 'tax.uzNdfl',
       rate: ndflRate,
       amount: gross * ndflRate,
-      hint: `в т. ч. ИНПС ${fmtPct(p.inpsRate)}: ${round2(gross * p.inpsRate).toLocaleString('ru-RU')}`,
+      hint: { key: 'hint.inps', vars: { rate: p.inpsRate, amount: round2(gross * p.inpsRate) } },
     },
   ];
   const employer = [
-    { key: 'social', label: 'Социальный налог', rate: socialRate, amount: gross * socialRate },
+    { key: 'social', labelKey: 'tax.social', rate: socialRate, amount: gross * socialRate },
   ];
-  const info = isItPark ? ['Резидент IT Park: НДФЛ 7,5 %, соцналог не уплачивается.'] : [];
+  const info = isItPark ? [{ key: 'info.uzItPark', vars: { rate: ndflRate } }] : [];
   return finish(gross, employee, employer, info);
 }
 
@@ -221,14 +223,14 @@ export function monthlyExtras(extras = {}) {
   const eq = extras.equipment || {};
   const eqMonths = Math.max(1, Number(eq.months) || 1);
   const items = [
-    { key: 'telecom', label: 'Связь', amount: toMonthly(extras.telecom) },
-    { key: 'dms', label: 'ДМС', amount: toMonthly(extras.dms) },
-    { key: 'training', label: 'Обучение', amount: toMonthly(extras.training) },
+    { key: 'telecom', labelKey: 'extras.telecom', amount: toMonthly(extras.telecom) },
+    { key: 'dms', labelKey: 'extras.dms', amount: toMonthly(extras.dms) },
+    { key: 'training', labelKey: 'extras.training', amount: toMonthly(extras.training) },
     {
       key: 'equipment',
-      label: 'Оборудование',
+      labelKey: 'extras.equipment',
       amount: (Number(eq.amount) || 0) / eqMonths,
-      hint: eq.amount ? `${Number(eq.amount).toLocaleString('ru-RU')} / ${eqMonths} мес.` : '',
+      hint: eq.amount ? { key: 'hint.equipment', vars: { amount: Number(eq.amount), months: eqMonths } } : null,
     },
   ];
   return { items, total: items.reduce((s, x) => s + x.amount, 0) };
@@ -241,6 +243,8 @@ export function monthlyExtras(extras = {}) {
  *   premiumPct   — премия в % от оклада (при 100 % загрузки),
  *   workDays     — рабочих дней в месяце по календарю,
  *   projectDays  — дней на проекте в этом месяце,
+ *   annualBonusPct — годовой бонус в % от годового оклада (выплата раз в год,
+ *                    в стоимости учитывается ежемесячным резервом 1/12),
  *   extras: { telecom:{amount,period}, dms:{...}, training:{...}, equipment:{amount,months} },
  *   options: { kzOpvrApplies, injuryRate },
  *   params
@@ -261,13 +265,19 @@ export function calculate(input) {
   const dailyRate = workDays > 0 ? premiumFull / workDays : 0; // фиксированная ставка в день
   const utilization = workDays > 0 ? (projectDays / workDays) * 100 : 0;
   const netPremium = dailyRate * projectDays;
-  const netTotal = netSalary + netPremium;
+  const annualBonusPct = Math.max(0, Number(input.annualBonusPct) || 0);
+  const netBonusYear = netSalary * 12 * (annualBonusPct / 100);
+  const netBonus = netBonusYear / 12; // ежемесячный резерв
+  const netTotal = netSalary + netPremium + netBonus;
 
   const gross = grossUp(input.regime, netTotal, params, options);
   const breakdown = computeFromGross(input.regime, gross, params, options);
-  const share = netTotal > 0 ? netSalary / netTotal : 1;
-  const grossSalary = gross * share;
-  const grossPremium = gross - grossSalary;
+  // Начисление распределяется по составляющим пропорционально суммам на руки.
+  const grossFactor = netTotal > 0 ? gross / netTotal : 1;
+  const grossPremium = netPremium * grossFactor;
+  const grossBonus = netBonus * grossFactor;
+  const grossSalary = gross - grossPremium - grossBonus;
+  const grossDailyRate = dailyRate * grossFactor;
 
   const extras = monthlyExtras(input.extras);
   const payrollCost = gross + breakdown.employerTotal; // ФОТ с отчислениями
@@ -286,6 +296,13 @@ export function calculate(input) {
       workDays,
       projectDays,
       utilization: round2(utilization),
+      grossDailyRate: round2(grossDailyRate),
+      annualBonusPct,
+      netBonus: round2(netBonus),
+      grossBonus: round2(grossBonus),
+      netBonusYear: round2(netBonusYear),
+      grossBonusYear: round2(grossBonus * 12),
+      netPay: round2(netSalary + netPremium),
       netPremium: round2(netPremium),
       netTotal: round2(netTotal),
       gross: round2(gross),
@@ -304,8 +321,4 @@ export function calculate(input) {
     taxWedge: gross + breakdown.employerTotal > 0 ? round2((breakdown.employeeTotal + breakdown.employerTotal) / payrollCost) : 0,
     info: breakdown.info,
   };
-}
-
-function fmtPct(x) {
-  return `${(x * 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} %`;
 }
