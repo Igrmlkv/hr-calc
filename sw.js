@@ -1,5 +1,5 @@
 // Service worker: кеширует оболочку приложения, работает офлайн.
-const VERSION = 'hr-calc-v1.0.0';
+const VERSION = 'hr-calc-v1.1.0';
 const SHELL = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const SHELL = [
   './js/params.js',
   './manifest.webmanifest',
   './icons/icon.svg',
+  './icons/msgplaut-logo.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/maskable-192.png',

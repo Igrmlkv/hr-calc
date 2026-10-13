@@ -303,6 +303,7 @@ function row(cells, cls) {
   for (const c of cells) {
     const td = document.createElement(c.th ? 'th' : 'td');
     if (c.num) td.className = 'num';
+    if (c.dl) td.dataset.label = c.dl;
     if (c.html) td.innerHTML = c.html; else td.textContent = c.text ?? '';
     if (c.hint) {
       const s = document.createElement('span');
@@ -333,20 +334,20 @@ function renderResult(r) {
   const ib = $('incomeBody');
   ib.innerHTML = '';
   ib.append(
-    row([{ text: 'Оклад' }, { text: money(inc.netSalary, sym), num: true }, { text: money(inc.grossSalary, sym), num: true }]),
-    row([{ text: `Премия за проект (${pf.format(inc.utilization)} % × ${money(inc.premiumFull, sym)})` }, { text: money(inc.netPremium, sym), num: true }, { text: money(inc.grossPremium, sym), num: true }]),
-    row([{ text: 'Итого', th: true }, { text: money(inc.netTotal, sym), num: true }, { text: money(inc.gross, sym), num: true }], 'total'),
+    row([{ text: 'Оклад' }, { text: money(inc.netSalary, sym), num: true, dl: 'На руки' }, { text: money(inc.grossSalary, sym), num: true, dl: 'Начислено' }]),
+    row([{ text: `Премия за проект (${pf.format(inc.utilization)} % × ${money(inc.premiumFull, sym)})` }, { text: money(inc.netPremium, sym), num: true, dl: 'На руки' }, { text: money(inc.grossPremium, sym), num: true, dl: 'Начислено' }]),
+    row([{ text: 'Итого', th: true }, { text: money(inc.netTotal, sym), num: true, dl: 'На руки' }, { text: money(inc.gross, sym), num: true, dl: 'Начислено' }], 'total'),
   );
 
   const eb = $('employeeBody');
   eb.innerHTML = '';
-  for (const x of r.employee) eb.appendChild(row([{ text: x.label, hint: x.hint }, { text: pct(x.rate), num: true }, { text: money(x.amount, sym), num: true }]));
+  for (const x of r.employee) eb.appendChild(row([{ text: x.label, hint: x.hint }, { text: pct(x.rate), num: true, dl: 'Ставка' }, { text: money(x.amount, sym), num: true, dl: 'Сумма' }]));
   $('employeeTotal').textContent = money(r.employeeTotal, sym);
 
   const rb = $('employerBody');
   rb.innerHTML = '';
   if (r.employer.length === 0) rb.appendChild(row([{ text: 'Отчисления не начисляются' }, { text: '' }, { text: money(0, sym), num: true }]));
-  for (const x of r.employer) rb.appendChild(row([{ text: x.label, hint: x.hint }, { text: pct(x.rate), num: true }, { text: money(x.amount, sym), num: true }]));
+  for (const x of r.employer) rb.appendChild(row([{ text: x.label, hint: x.hint }, { text: pct(x.rate), num: true, dl: 'Ставка' }, { text: money(x.amount, sym), num: true, dl: 'Сумма' }]));
   $('employerTotal').textContent = money(r.employerTotal, sym);
 
   const cb = $('costBody');

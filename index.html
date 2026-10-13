@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>HR Calc — калькулятор стоимости сотрудника</title>
   <meta name="description" content="Расчёт от суммы на руки: начисление, налоги, взносы и полные затраты компании для РФ, Казахстана и Узбекистана.">
-  <meta name="theme-color" content="#1f3a5f">
-  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#A01441">
+  <meta name="color-scheme" content="light">
   <meta name="application-name" content="HR Calc">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -20,9 +20,11 @@
   <header class="topbar">
     <div class="topbar__inner">
       <a class="brand" href="./">
-        <img src="icons/icon.svg" alt="" width="28" height="28">
-        <span>HR Calc</span>
-        <span class="brand__sub">стоимость сотрудника · 2026</span>
+        <img class="brand__logo" src="icons/msgplaut-logo.svg" alt="msg Plaut">
+        <span class="brand__text">
+          <span class="brand__name">HR Calc</span>
+          <span class="brand__sub">стоимость сотрудника · 2026</span>
+        </span>
       </a>
       <div class="topbar__actions">
         <span id="netStatus" class="badge badge--ok" title="Состояние сети">онлайн</span>
@@ -136,7 +138,7 @@
 
       <div class="card">
         <h2 class="card__title">Начисление <span class="muted" id="resRegime"></span></h2>
-        <table class="table">
+        <table class="table table--stack">
           <thead><tr><th>Составляющая</th><th class="num">На руки</th><th class="num">Начислено</th></tr></thead>
           <tbody id="incomeBody"></tbody>
         </table>
@@ -144,25 +146,25 @@
 
       <div class="card">
         <h2 class="card__title">Удержания с сотрудника</h2>
-        <table class="table">
+        <table class="table table--stack">
           <thead><tr><th>Налог / взнос</th><th class="num">Ставка</th><th class="num">Сумма</th></tr></thead>
           <tbody id="employeeBody"></tbody>
-          <tfoot><tr><th>Итого удержано</th><td></td><td class="num" id="employeeTotal"></td></tr></tfoot>
+          <tfoot><tr><th>Итого удержано</th><td></td><td class="num" id="employeeTotal" data-label="Сумма"></td></tr></tfoot>
         </table>
       </div>
 
       <div class="card">
         <h2 class="card__title">Отчисления работодателя</h2>
-        <table class="table">
+        <table class="table table--stack">
           <thead><tr><th>Взнос</th><th class="num">Ставка</th><th class="num">Сумма</th></tr></thead>
           <tbody id="employerBody"></tbody>
-          <tfoot><tr><th>Итого сверх начисления</th><td></td><td class="num" id="employerTotal"></td></tr></tfoot>
+          <tfoot><tr><th>Итого сверх начисления</th><td></td><td class="num" id="employerTotal" data-label="Сумма"></td></tr></tfoot>
         </table>
       </div>
 
       <div class="card">
         <h2 class="card__title">Полная стоимость сотрудника</h2>
-        <table class="table">
+        <table class="table table--stack">
           <tbody id="costBody"></tbody>
         </table>
         <ul id="infoNotes" class="notes notes--info"></ul>
@@ -179,6 +181,7 @@
   <footer class="footer">
     <p>Расчёт предполагает равномерный доход в течение года: годовые пороги (прогрессивная шкала, предельные базы) применяются как 1/12 в месяц. Ставки по умолчанию — 2026 год; перед применением сверьте их с актуальным законодательством.</p>
     <p>Данные хранятся только в вашем браузере. Приложение работает офлайн после первой загрузки.</p>
+    <div class="footer__brand"><img src="icons/msgplaut-logo.svg" alt="msg Plaut"><span>Внутренний инструмент msg Plaut</span></div>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
