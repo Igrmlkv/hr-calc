@@ -4,12 +4,6 @@
 
 export const PARAMS_VERSION = '2026-01';
 
-export const COUNTRIES = {
-  RU: { currency: 'RUB' },
-  KZ: { currency: 'KZT' },
-  UZ: { currency: 'UZS' },
-};
-
 // Тексты режимов (название, краткое название, пояснения) — в js/i18n.js: regime.<id>.*
 export const REGIMES = {
   ru_td_general: { country: 'RU' },

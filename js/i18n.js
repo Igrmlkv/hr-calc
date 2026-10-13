@@ -84,11 +84,11 @@ const ru = {
   'th.net': 'На руки',
   'th.gross': 'Начислено',
   'row.salary': 'Оклад',
-  'row.premium': 'Премия за проект ({pct} % от оклада)',
-  'row.premiumHint': '{days} из {work} дн. · загрузка {util} %',
+  'row.premium': 'Премия за проект ({pct} от оклада)',
+  'row.premiumHint': '{days} из {work} дн. · загрузка {util}',
   'row.dailyRate': 'Ставка премии в день',
   'row.dailyRateHint': 'справочно: за один день на проекте',
-  'row.bonus': 'Годовой бонус ({pct} %), резерв в месяц',
+  'row.bonus': 'Годовой бонус ({pct}), резерв в месяц',
   'row.bonusHint': 'за год: {net} на руки, {gross} gross',
   'row.total': 'Итого',
 
@@ -129,19 +129,14 @@ const ru = {
 
   'copy.title': 'Расчёт стоимости сотрудника — {country}, {regime}',
   'copy.salary': 'Оклад на руки',
-  'copy.premium': 'Премия за проект: {pct} % от оклада = {full} в месяц; ставка {rate} в день на руки, {grossRate} gross',
-  'copy.premiumDays': '  {days} из {work} рабочих дней, загрузка {util} %',
-  'copy.bonus': 'Годовой бонус {pct} %: {year} в год, резерв в месяц',
+  'copy.premium': 'Премия за проект: {pct} от оклада = {full} в месяц; ставка {rate} в день на руки, {grossRate} gross',
+  'copy.premiumDays': '  {days} из {work} рабочих дней, загрузка {util}',
+  'copy.bonus': 'Годовой бонус {pct}: {year} в год, резерв в месяц',
   'copy.netTotal': 'Итого на руки (с резервом бонуса)',
   'copy.gross': 'Начислено (gross)',
   'copy.employee': 'Удержания с сотрудника:',
   'copy.employer': 'Отчисления работодателя:',
   'copy.total': '  Итого',
-  'copy.payroll': 'ФОТ с отчислениями',
-  'copy.extraItem': '  {label} (в месяц)',
-  'copy.extras': 'Дополнительные затраты',
-  'copy.month': 'Полная стоимость в месяц',
-  'copy.year': 'Полная стоимость в год',
   'copy.ratio': 'Коэффициент к сумме на руки',
 
   // Налоги и взносы
@@ -345,11 +340,11 @@ const en = {
   'th.net': 'Net',
   'th.gross': 'Gross',
   'row.salary': 'Base salary',
-  'row.premium': 'Project bonus ({pct}% of salary)',
-  'row.premiumHint': '{days} of {work} days · utilization {util}%',
+  'row.premium': 'Project bonus ({pct} of salary)',
+  'row.premiumHint': '{days} of {work} days · utilization {util}',
   'row.dailyRate': 'Bonus rate per day',
   'row.dailyRateHint': 'reference: for one day on the project',
-  'row.bonus': 'Annual bonus ({pct}%), monthly accrual',
+  'row.bonus': 'Annual bonus ({pct}), monthly accrual',
   'row.bonusHint': 'per year: {net} net, {gross} gross',
   'row.total': 'Total',
 
@@ -390,19 +385,14 @@ const en = {
 
   'copy.title': 'Employee cost calculation — {country}, {regime}',
   'copy.salary': 'Base salary, net',
-  'copy.premium': 'Project bonus: {pct}% of salary = {full} per month; rate {rate} per day net, {grossRate} gross',
-  'copy.premiumDays': '  {days} of {work} working days, utilization {util}%',
-  'copy.bonus': 'Annual bonus {pct}%: {year} per year, monthly accrual',
+  'copy.premium': 'Project bonus: {pct} of salary = {full} per month; rate {rate} per day net, {grossRate} gross',
+  'copy.premiumDays': '  {days} of {work} working days, utilization {util}',
+  'copy.bonus': 'Annual bonus {pct}: {year} per year, monthly accrual',
   'copy.netTotal': 'Total net (incl. bonus accrual)',
   'copy.gross': 'Gross pay',
   'copy.employee': 'Employee withholdings:',
   'copy.employer': 'Employer charges:',
   'copy.total': '  Total',
-  'copy.payroll': 'Payroll cost incl. charges',
-  'copy.extraItem': '  {label} (per month)',
-  'copy.extras': 'Additional costs',
-  'copy.month': 'Total cost per month',
-  'copy.year': 'Total cost per year',
   'copy.ratio': 'Ratio to net pay',
 
   'tax.ndfl': 'Personal income tax (NDFL)',
@@ -523,12 +513,13 @@ const en = {
   'param.inpsRate': 'INPS (within income tax, reference)',
 };
 
-// Русская типографика: неразрывный пробел перед «%», чтобы знак не отрывался от числа.
+// Русская типографика: неразрывный пробел перед «%» в статичных текстах (пояснения к режимам).
+// Проценты из расчёта форматируются через Intl и получают неразрывный пробел сами.
 for (const [k, v] of Object.entries(ru)) {
   ru[k] = Array.isArray(v) ? v.map((x) => x.replace(/ %/g, '\u00a0%')) : v.replace(/ %/g, '\u00a0%');
 }
 
-export const DICT = { ru, en };
+const DICT = { ru, en };
 
 /** Перевод по ключу с подстановкой {name}. Отсутствующий ключ — из русского словаря, иначе сам ключ. */
 export function translate(lang, key, vars) {

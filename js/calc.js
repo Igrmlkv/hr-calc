@@ -1,7 +1,7 @@
 // Ядро расчёта. Чистые функции без зависимостей от DOM — используются и в браузере, и в тестах.
 // Тексты не формируются здесь: строки результата несут ключ перевода (labelKey, hint.key, info[].key)
 // и параметры (vars), которые интерфейс переводит и форматирует на выбранном языке.
-import { DEFAULT_PARAMS, REGIMES, COUNTRIES } from './params.js';
+import { DEFAULT_PARAMS, REGIMES } from './params.js';
 
 const round2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 const clamp = (x, lo, hi) => Math.min(Math.max(x, lo), hi);
@@ -255,7 +255,6 @@ export function calculate(input) {
   const options = input.options || {};
   const regime = REGIMES[input.regime];
   if (!regime) throw new Error(`Неизвестный режим: ${input.regime}`);
-  const country = COUNTRIES[regime.country];
 
   const netSalary = Math.max(0, Number(input.netSalary) || 0);
   const premiumPct = Math.max(0, Number(input.premiumPct) || 0);
@@ -286,8 +285,8 @@ export function calculate(input) {
   const r2list = (list) => list.map((x) => ({ ...x, amount: round2(x.amount) }));
 
   return {
-    regime: { id: input.regime, ...regime },
-    country: { code: regime.country, ...country },
+    regime: input.regime,
+    country: regime.country,
     income: {
       netSalary: round2(netSalary),
       premiumPct,

@@ -6,9 +6,16 @@ const STORAGE_KEY = 'hr-calc:state:v1';
 const $ = (id) => document.getElementById(id);
 
 /* ---------- Состояние ---------- */
+// Казахский и узбекский интерфейс не переведён — для них ближе русский.
+const LANG_ALIASES = { kk: 'ru', uz: 'ru' };
 const detectLang = () => {
-  const l = (navigator.language || 'ru').toLowerCase();
-  return l.startsWith('ru') || l.startsWith('kk') || l.startsWith('uz') ? 'ru' : 'en';
+  const prefs = navigator.languages?.length ? navigator.languages : [navigator.language || 'ru'];
+  for (const l of prefs) {
+    const base = l.toLowerCase().split('-')[0];
+    const lang = LANG_ALIASES[base] || base;
+    if (LANGS.includes(lang)) return lang;
+  }
+  return 'en';
 };
 
 const defaultState = () => ({
@@ -51,21 +58,23 @@ function reviveParams(stored) {
   return base;
 }
 
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
 function loadState() {
   const st = defaultState();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return st;
     const saved = JSON.parse(raw);
-    Object.assign(st, saved, { params: reviveParams(saved.params) });
-    st.extras = { ...defaultState().extras, ...(saved.extras || {}) };
-    st.regimeByCountry = { ...defaultState().regimeByCountry, ...(saved.regimeByCountry || {}) };
+    // Берутся только ключи текущей схемы: поля прошлых версий отбрасываются, недостающие
+    // остаются по умолчанию, вложенные объекты (extras, regimeByCountry) сливаются на один уровень.
+    for (const k of Object.keys(st)) {
+      if (k === 'params' || saved[k] === undefined) continue;
+      st[k] = isPlainObject(st[k]) ? { ...st[k], ...saved[k] } : saved[k];
+    }
+    st.params = reviveParams(saved.params);
     if (!REGIMES[st.regime]) st.regime = st.regimeByCountry[st.country];
     if (!LANGS.includes(st.lang)) st.lang = detectLang();
-    // миграция со старой модели премии (фиксированная сумма × % загрузки)
-    if (saved.premiumPct === undefined) { st.premiumPct = 30; st.workDays = 21; st.projectDays = 21; }
-    if (saved.annualBonusPct === undefined) st.annualBonusPct = 8;
-    delete st.premiumFull; delete st.utilization;
   } catch { /* повреждённое хранилище — начинаем заново */ }
   return st;
 }
@@ -79,42 +88,40 @@ let state = loadState();
 
 /* ---------- Язык, форматирование и парсинг чисел ---------- */
 const t = (key, vars) => translate(state.lang, key, vars);
-let nf, nf0, pf;
+let nf, nf0, pf, pctFmt, groupSep, decimalSep;
 function setFormatters() {
   const loc = LOCALES[state.lang];
   nf = new Intl.NumberFormat(loc, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   nf0 = new Intl.NumberFormat(loc, { maximumFractionDigits: 0 });
   pf = new Intl.NumberFormat(loc, { maximumFractionDigits: 2 });
+  pctFmt = new Intl.NumberFormat(loc, { style: 'percent', maximumFractionDigits: 2 });
+  const parts = nf.formatToParts(12345.6);
+  groupSep = parts.find((x) => x.type === 'group').value;
+  decimalSep = parts.find((x) => x.type === 'decimal').value;
 }
 setFormatters();
 
-// RU: пробелы — разделитель разрядов, запятая или точка — дробная часть.
-// EN: запятая — разделитель разрядов, точка — дробная часть.
+// Разделители разрядов и дробной части берутся из локали языка интерфейса;
+// точка как дробный разделитель принимается всегда.
 function parseNum(str) {
   if (typeof str === 'number') return str;
-  let s = String(str ?? '').replace(/[\s  ]/g, '');
-  s = state.lang === 'en' ? s.replace(/,/g, '') : s.replace(',', '.');
+  let s = String(str ?? '').replace(/\s/g, '');
+  if (groupSep.trim()) s = s.split(groupSep).join('');
+  s = s.replace(decimalSep, '.');
   const n = parseFloat(s.replace(/[^\d.\-]/g, ''));
   return Number.isFinite(n) ? n : 0;
 }
 const sym = (country) => t(`cur.${country}`);
-const money = (x, s) => `${nf.format(x)} ${s}`;
-const money0 = (x, s) => `${nf0.format(x)} ${s}`;
-const pctNum = (n) => (state.lang === 'en' ? `${pf.format(n)}%` : `${pf.format(n)}\u00a0%`);
-const pct = (x) => pctNum(x * 100);
+const countryName = (country) => t(`country.${country}`);
+const regimeText = (id, field) => t(`regime.${id}.${field}`);
+const money = (x, s) => `${nf.format(x)}\u00a0${s}`;
+const money0 = (x, s) => `${nf0.format(x)}\u00a0${s}`;
+const pct = (fraction) => pctFmt.format(fraction);
 const num = (n) => pf.format(n);
 
-// Подстановки из ядра расчёта: rate — доля (в %), amount — сумма, прочие числа — как есть.
-function fmtVars(vars) {
-  if (!vars) return vars;
-  const out = {};
-  for (const [k, v] of Object.entries(vars)) {
-    if (k === 'rate') out[k] = pct(v);
-    else if (k === 'amount') out[k] = nf.format(v);
-    else out[k] = typeof v === 'number' ? nf.format(v) : v;
-  }
-  return out;
-}
+// Подстановки из ядра расчёта: rate — доля (выводится в %), прочие числа — по локали.
+const fmtVars = (vars) =>
+  vars && Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, k === 'rate' ? pct(v) : typeof v === 'number' ? nf.format(v) : v]));
 const tr = (obj) => (obj ? t(obj.key, fmtVars(obj.vars)) : '');
 
 function applyStaticTexts() {
@@ -150,13 +157,13 @@ function renderCountry() {
   for (const r of regimesForCountry(state.country)) {
     const o = document.createElement('option');
     o.value = r.id;
-    o.textContent = t(`regime.${r.id}.label`);
+    o.textContent = regimeText(r.id, 'label');
     sel.appendChild(o);
   }
   if (REGIMES[state.regime]?.country !== state.country) state.regime = state.regimeByCountry[state.country];
   sel.value = state.regime;
   document.querySelectorAll('[data-cur]').forEach((el) => (el.textContent = `(${sym(state.country)})`));
-  $('paramsCountryLabel').textContent = `· ${t(`country.${state.country}`)}`;
+  $('paramsCountryLabel').textContent = `· ${countryName(state.country)}`;
   renderRegimeNotes();
   renderCountryOptions();
   renderParamsForm();
@@ -165,7 +172,7 @@ function renderCountry() {
 function renderRegimeNotes() {
   const ul = $('regimeNotes');
   ul.innerHTML = '';
-  for (const n of t(`regime.${state.regime}.notes`)) {
+  for (const n of regimeText(state.regime, 'notes')) {
     const li = document.createElement('li');
     li.textContent = n;
     ul.appendChild(li);
@@ -276,11 +283,9 @@ function bindNumber(id, get, set, fmt = (v) => (v ? nf.format(v) : '')) {
   el.addEventListener('focus', () => el.select());
   refreshers.push(show);
 }
-const fmtPlain = (v) => pf.format(v);
-
 bindNumber('netSalary', () => state.netSalary, (v) => (state.netSalary = Math.max(0, v)));
-bindNumber('premiumPct', () => state.premiumPct, (v) => (state.premiumPct = Math.max(0, v)), fmtPlain);
-bindNumber('annualBonusPct', () => state.annualBonusPct, (v) => (state.annualBonusPct = Math.max(0, v)), fmtPlain);
+bindNumber('premiumPct', () => state.premiumPct, (v) => (state.premiumPct = Math.max(0, v)), num);
+bindNumber('annualBonusPct', () => state.annualBonusPct, (v) => (state.annualBonusPct = Math.max(0, v)), num);
 for (const key of ['telecom', 'dms', 'training', 'equipment']) {
   bindNumber(`${key}Amount`, () => state.extras[key].amount, (v) => (state.extras[key].amount = Math.max(0, v)));
 }
@@ -390,19 +395,23 @@ function row(cells, cls) {
   return tr;
 }
 
+// Строка «на руки / начислено» таблицы начисления.
+const incRow = (text, hint, net, gross, s, cls) =>
+  row([{ text, hint }, { text: money(net, s), num: true, dl: t('th.net') }, { text: money(gross, s), num: true, dl: t('th.gross') }], cls);
+// Строка налога или взноса: название с подсказкой, ставка, сумма.
+const taxRow = (x, s) =>
+  row([{ text: t(x.labelKey), hint: tr(x.hint) }, { text: pct(x.rate), num: true, dl: t('th.rate') }, { text: money(x.amount, s), num: true, dl: t('th.amount') }]);
+const taxLine = (x, s) => `  ${t(x.labelKey)} ${pct(x.rate)}: ${money(x.amount, s)}`;
+
 function renderResult(r) {
-  const s = sym(r.country.code);
+  const s = sym(r.country);
   const inc = r.income;
-  const dlNet = t('th.net');
-  const dlGross = t('th.gross');
-  const dlRate = t('th.rate');
-  const dlAmount = t('th.amount');
 
   // Карточка премии
   $('premiumFullCalc').textContent = money(inc.premiumFull, s);
   $('dailyRateCalc').textContent = money(inc.dailyRate, s);
   $('dailyRateGrossCalc').textContent = t('kv.dailyRateSub', { gross: money(inc.grossDailyRate, s) });
-  $('utilizationCalc').textContent = pctNum(inc.utilization);
+  $('utilizationCalc').textContent = pct(inc.utilization / 100);
   $('premiumCalc').textContent = t('premium.payoutValue', { amount: money(inc.netPremium, s), days: num(inc.projectDays), rate: money(inc.dailyRate, s) });
 
   // Карточка годового бонуса
@@ -421,101 +430,83 @@ function renderResult(r) {
   $('hCostYear').textContent = money0(r.totalCostYear, s);
   $('hRatio').textContent = r.costToNetRatio ? t('hero.ratio', { x: num(r.costToNetRatio) }) : '—';
 
-  $('resRegime').textContent = `· ${t(`country.${r.country.code}`)}, ${t(`regime.${r.regime.id}.short`)}`;
+  $('resRegime').textContent = `· ${countryName(r.country)}, ${regimeText(r.regime, 'short')}`;
 
   // Начисление
-  const ib = $('incomeBody');
-  ib.innerHTML = '';
-  ib.append(
-    row([{ text: t('row.salary') }, { text: money(inc.netSalary, s), num: true, dl: dlNet }, { text: money(inc.grossSalary, s), num: true, dl: dlGross }]),
-    row([
-      { text: t('row.premium', { pct: num(inc.premiumPct) }), hint: t('row.premiumHint', { days: num(inc.projectDays), work: num(inc.workDays), util: num(inc.utilization) }) },
-      { text: money(inc.netPremium, s), num: true, dl: dlNet },
-      { text: money(inc.grossPremium, s), num: true, dl: dlGross },
-    ]),
-  );
-  if (inc.annualBonusPct > 0) {
-    ib.append(row([
-      { text: t('row.bonus', { pct: num(inc.annualBonusPct) }), hint: t('row.bonusHint', { net: money(inc.netBonusYear, s), gross: money(inc.grossBonusYear, s) }) },
-      { text: money(inc.netBonus, s), num: true, dl: dlNet },
-      { text: money(inc.grossBonus, s), num: true, dl: dlGross },
-    ]));
-  }
-  ib.append(
-    row([{ text: t('row.total'), th: true }, { text: money(inc.netTotal, s), num: true, dl: dlNet }, { text: money(inc.gross, s), num: true, dl: dlGross }], 'total'),
-    row([{ text: t('row.dailyRate'), hint: t('row.dailyRateHint') }, { text: money(inc.dailyRate, s), num: true, dl: dlNet }, { text: money(inc.grossDailyRate, s), num: true, dl: dlGross }], 'ref'),
-  );
+  $('incomeBody').replaceChildren(...[
+    incRow(t('row.salary'), '', inc.netSalary, inc.grossSalary, s),
+    incRow(
+      t('row.premium', { pct: pct(inc.premiumPct / 100) }),
+      t('row.premiumHint', { days: num(inc.projectDays), work: num(inc.workDays), util: pct(inc.utilization / 100) }),
+      inc.netPremium, inc.grossPremium, s,
+    ),
+    inc.annualBonusPct > 0 && incRow(
+      t('row.bonus', { pct: pct(inc.annualBonusPct / 100) }),
+      t('row.bonusHint', { net: money(inc.netBonusYear, s), gross: money(inc.grossBonusYear, s) }),
+      inc.netBonus, inc.grossBonus, s,
+    ),
+    row([{ text: t('row.total'), th: true }, { text: money(inc.netTotal, s), num: true, dl: t('th.net') }, { text: money(inc.gross, s), num: true, dl: t('th.gross') }], 'total'),
+    incRow(t('row.dailyRate'), t('row.dailyRateHint'), inc.dailyRate, inc.grossDailyRate, s, 'ref'),
+  ].filter(Boolean));
 
-  // Удержания
-  const eb = $('employeeBody');
-  eb.innerHTML = '';
-  for (const x of r.employee) eb.appendChild(row([{ text: t(x.labelKey), hint: tr(x.hint) }, { text: pct(x.rate), num: true, dl: dlRate }, { text: money(x.amount, s), num: true, dl: dlAmount }]));
+  // Удержания и отчисления работодателя
+  $('employeeBody').replaceChildren(...r.employee.map((x) => taxRow(x, s)));
   $('employeeTotal').textContent = money(r.employeeTotal, s);
-
-  // Отчисления работодателя
-  const rb = $('employerBody');
-  rb.innerHTML = '';
-  if (r.employer.length === 0) rb.appendChild(row([{ text: t('employer.none') }, { text: '' }, { text: money(0, s), num: true }]));
-  for (const x of r.employer) rb.appendChild(row([{ text: t(x.labelKey), hint: tr(x.hint) }, { text: pct(x.rate), num: true, dl: dlRate }, { text: money(x.amount, s), num: true, dl: dlAmount }]));
+  $('employerBody').replaceChildren(...(r.employer.length
+    ? r.employer.map((x) => taxRow(x, s))
+    : [row([{ text: t('employer.none') }, { text: '' }, { text: money(0, s), num: true }])]));
   $('employerTotal').textContent = money(r.employerTotal, s);
 
   // Полная стоимость
-  const cb = $('costBody');
-  cb.innerHTML = '';
-  cb.append(
+  $('costBody').replaceChildren(
     row([{ text: t('cost.gross') }, { text: money(inc.gross, s), num: true }]),
     row([{ text: t('cost.employer') }, { text: money(r.employerTotal, s), num: true }]),
     row([{ text: t('cost.payroll'), th: true }, { text: money(r.payrollCost, s), num: true }], 'total'),
-  );
-  for (const x of r.extras.items) {
-    if (x.amount > 0) cb.appendChild(row([{ text: t('cost.extraItem', { label: t(x.labelKey) }), hint: tr(x.hint) }, { text: money(x.amount, s), num: true }]));
-  }
-  cb.append(
+    ...r.extras.items.filter((x) => x.amount > 0)
+      .map((x) => row([{ text: t('cost.extraItem', { label: t(x.labelKey) }), hint: tr(x.hint) }, { text: money(x.amount, s), num: true }])),
     row([{ text: t('cost.extras') }, { text: money(r.extras.total, s), num: true }]),
     row([{ text: t('cost.month'), th: true }, { text: money(r.totalCost, s), num: true }], 'grand'),
     row([{ text: t('cost.year'), th: true }, { text: money(r.totalCostYear, s), num: true }], 'total'),
     row([{ text: t('cost.wedge'), hint: t('cost.wedgeHint') }, { text: pct(r.taxWedge), num: true }]),
   );
 
-  const notes = $('infoNotes');
-  notes.innerHTML = '';
-  for (const n of r.info) {
+  $('infoNotes').replaceChildren(...r.info.map((n) => {
     const li = document.createElement('li');
     li.textContent = tr(n);
-    notes.appendChild(li);
-  }
+    return li;
+  }));
 }
 
 /* ---------- Копирование ---------- */
 function resultAsText(r) {
-  const s = sym(r.country.code);
+  const s = sym(r.country);
   const inc = r.income;
   const line = (l, v) => `${l}: ${v}`;
   const out = [
-    t('copy.title', { country: t(`country.${r.country.code}`), regime: t(`regime.${r.regime.id}.label`) }),
+    t('copy.title', { country: countryName(r.country), regime: regimeText(r.regime, 'label') }),
     '',
     line(t('copy.salary'), money(inc.netSalary, s)),
-    t('copy.premium', { pct: num(inc.premiumPct), full: money(inc.premiumFull, s), rate: money(inc.dailyRate, s), grossRate: money(inc.grossDailyRate, s) }),
-    line(t('copy.premiumDays', { days: num(inc.projectDays), work: num(inc.workDays), util: num(inc.utilization) }), money(inc.netPremium, s)),
+    t('copy.premium', { pct: pct(inc.premiumPct / 100), full: money(inc.premiumFull, s), rate: money(inc.dailyRate, s), grossRate: money(inc.grossDailyRate, s) }),
+    line(t('copy.premiumDays', { days: num(inc.projectDays), work: num(inc.workDays), util: pct(inc.utilization / 100) }), money(inc.netPremium, s)),
   ];
-  if (inc.annualBonusPct > 0) out.push(line(t('copy.bonus', { pct: num(inc.annualBonusPct), year: money(inc.netBonusYear, s) }), money(inc.netBonus, s)));
+  if (inc.annualBonusPct > 0) out.push(line(t('copy.bonus', { pct: pct(inc.annualBonusPct / 100), year: money(inc.netBonusYear, s) }), money(inc.netBonus, s)));
   out.push(
     line(t('copy.netTotal'), money(inc.netTotal, s)),
     line(t('copy.gross'), money(inc.gross, s)),
     '',
     t('copy.employee'),
-    ...r.employee.map((x) => `  ${t(x.labelKey)} ${pct(x.rate)}: ${money(x.amount, s)}`),
+    ...r.employee.map((x) => taxLine(x, s)),
     line(t('copy.total'), money(r.employeeTotal, s)),
     '',
     t('copy.employer'),
-    ...r.employer.map((x) => `  ${t(x.labelKey)} ${pct(x.rate)}: ${money(x.amount, s)}`),
+    ...r.employer.map((x) => taxLine(x, s)),
     line(t('copy.total'), money(r.employerTotal, s)),
     '',
-    line(t('copy.payroll'), money(r.payrollCost, s)),
-    ...r.extras.items.filter((x) => x.amount > 0).map((x) => line(t('copy.extraItem', { label: t(x.labelKey) }), money(x.amount, s))),
-    line(t('copy.extras'), money(r.extras.total, s)),
-    line(t('copy.month'), money(r.totalCost, s)),
-    line(t('copy.year'), money(r.totalCostYear, s)),
+    line(t('cost.payroll'), money(r.payrollCost, s)),
+    ...r.extras.items.filter((x) => x.amount > 0).map((x) => line(`  ${t('cost.extraItem', { label: t(x.labelKey) })}`, money(x.amount, s))),
+    line(t('cost.extras'), money(r.extras.total, s)),
+    line(t('cost.month'), money(r.totalCost, s)),
+    line(t('cost.year'), money(r.totalCostYear, s)),
     line(t('copy.ratio'), `× ${num(r.costToNetRatio)}`),
   );
   if (r.info.length) out.push('', ...r.info.map((n) => `! ${tr(n)}`));
