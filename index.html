@@ -56,11 +56,19 @@
       </div>
 
       <div class="card">
-        <h2 class="card__title" data-i18n="card.income">Доход сотрудника (на руки)</h2>
-        <label class="field">
-          <span class="field__label"><span data-i18n="field.netSalary">Оклад, нетто в месяц</span> <em class="cur" data-cur></em></span>
-          <input id="netSalary" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
-        </label>
+        <h2 class="card__title" data-i18n="card.income">Оклад в месяц</h2>
+        <div class="pair">
+          <label class="field">
+            <span class="field__label"><span data-i18n="field.netSalary">На руки</span> <em class="cur" data-cur></em><span class="src" data-i18n="field.source" data-src="net">исходное</span></span>
+            <input id="netSalary" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
+          </label>
+          <span class="pair__arrow" aria-hidden="true">⇄</span>
+          <label class="field">
+            <span class="field__label"><span data-i18n="field.grossSalary">Gross</span> <em class="cur" data-cur></em><span class="src" data-i18n="field.source" data-src="gross">исходное</span></span>
+            <input id="grossSalary" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
+          </label>
+        </div>
+        <p class="field__hint" data-i18n="income.hint"></p>
       </div>
 
       <div class="card">
@@ -81,14 +89,14 @@
         </div>
         <div class="kv">
           <div class="kv__item">
-            <span class="kv__label" data-i18n="kv.premiumFull">Премия при 100 % загрузки</span>
+            <span class="kv__label" data-i18n="kv.premiumFull">Премия в месяц при 100 % загрузки</span>
             <strong class="kv__value" id="premiumFullCalc">—</strong>
-            <span class="kv__sub" data-i18n="kv.premiumFullSub">в месяц, нетто</span>
+            <span class="kv__sub" id="premiumFullOtherCalc">—</span>
           </div>
           <div class="kv__item kv__item--accent">
             <span class="kv__label" data-i18n="kv.dailyRate">Ставка премии в день</span>
             <strong class="kv__value" id="dailyRateCalc">—</strong>
-            <span class="kv__sub" id="dailyRateGrossCalc">—</span>
+            <span class="kv__sub" id="dailyRateOtherCalc">—</span>
           </div>
         </div>
         <div class="field">
@@ -116,12 +124,12 @@
           <div class="kv__item">
             <span class="kv__label" data-i18n="kv.bonusYear">Бонус за год</span>
             <strong class="kv__value" id="bonusYearCalc">—</strong>
-            <span class="kv__sub" id="bonusYearGrossCalc">—</span>
+            <span class="kv__sub" id="bonusYearOtherCalc">—</span>
           </div>
           <div class="kv__item">
             <span class="kv__label" data-i18n="kv.bonusMonth">Резерв в месяц</span>
             <strong class="kv__value" id="bonusMonthCalc">—</strong>
-            <span class="kv__sub" id="bonusMonthGrossCalc">—</span>
+            <span class="kv__sub" id="bonusMonthOtherCalc">—</span>
           </div>
         </div>
       </div>

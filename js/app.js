@@ -23,7 +23,9 @@ const defaultState = () => ({
   country: 'RU',
   regime: 'ru_td_general',
   regimeByCountry: { RU: 'ru_td_general', KZ: 'kz_td_our', UZ: 'uz_td_standard' },
+  salaryBasis: 'net', // от какой суммы идёт расчёт: 'net' или 'gross'
   netSalary: 0,
+  grossSalary: 0,
   premiumPct: 30,
   workDays: 21,
   projectDays: 21,
@@ -75,6 +77,7 @@ function loadState() {
     st.params = reviveParams(saved.params);
     if (!REGIMES[st.regime]) st.regime = st.regimeByCountry[st.country];
     if (!LANGS.includes(st.lang)) st.lang = detectLang();
+    if (st.salaryBasis !== 'gross') st.salaryBasis = 'net';
   } catch { /* повреждённое хранилище — начинаем заново */ }
   return st;
 }
@@ -85,6 +88,7 @@ function saveState() {
 }
 
 let state = loadState();
+let last = null; // последний результат расчёта
 
 /* ---------- Язык, форматирование и парсинг чисел ---------- */
 const t = (key, vars) => translate(state.lang, key, vars);
@@ -283,7 +287,25 @@ function bindNumber(id, get, set, fmt = (v) => (v ? nf.format(v) : '')) {
   el.addEventListener('focus', () => el.select());
   refreshers.push(show);
 }
-bindNumber('netSalary', () => state.netSalary, (v) => (state.netSalary = Math.max(0, v)));
+// Оклад: два связанных поля. Ввод в поле делает его исходным, второе пересчитывается.
+const SALARY_FIELDS = { net: 'netSalary', gross: 'grossSalary' };
+for (const [basis, key] of Object.entries(SALARY_FIELDS)) {
+  bindNumber(
+    key,
+    () => (state.salaryBasis === basis ? state[key] : last?.income[key] ?? 0),
+    (v) => { state.salaryBasis = basis; state[key] = Math.max(0, v); },
+  );
+}
+function syncSalaryFields(inc) {
+  for (const [basis, key] of Object.entries(SALARY_FIELDS)) {
+    const el = $(key);
+    const isSource = state.salaryBasis === basis;
+    el.classList.toggle('input--src', isSource);
+    el.classList.toggle('input--calc', !isSource);
+    document.querySelector(`.src[data-src="${basis}"]`).classList.toggle('src--on', isSource);
+    if (!isSource && document.activeElement !== el) el.value = inc[key] ? nf.format(inc[key]) : '';
+  }
+}
 bindNumber('premiumPct', () => state.premiumPct, (v) => (state.premiumPct = Math.max(0, v)), num);
 bindNumber('annualBonusPct', () => state.annualBonusPct, (v) => (state.annualBonusPct = Math.max(0, v)), num);
 for (const key of ['telecom', 'dms', 'training', 'equipment']) {
@@ -345,7 +367,7 @@ $('resetParams').addEventListener('click', () => {
 });
 $('resetAll').addEventListener('click', () => {
   const d = defaultState();
-  for (const k of ['netSalary', 'premiumPct', 'workDays', 'projectDays', 'annualBonusPct', 'extras']) state[k] = d[k];
+  for (const k of ['salaryBasis', 'netSalary', 'grossSalary', 'premiumPct', 'workDays', 'projectDays', 'annualBonusPct', 'extras']) state[k] = d[k];
   refreshers.forEach((fn) => fn());
   update();
 });
@@ -353,13 +375,14 @@ $('printBtn').addEventListener('click', () => window.print());
 $('copyBtn').addEventListener('click', copyResult);
 
 /* ---------- Расчёт и вывод ---------- */
-let last = null;
 
 function update() {
   try {
     last = calculate({
       regime: state.regime,
+      salaryBasis: state.salaryBasis,
       netSalary: state.netSalary,
+      grossSalary: state.grossSalary,
       premiumPct: state.premiumPct,
       workDays: state.workDays,
       projectDays: state.projectDays,
@@ -407,18 +430,25 @@ function renderResult(r) {
   const s = sym(r.country);
   const inc = r.income;
 
-  // Карточка премии
-  $('premiumFullCalc').textContent = money(inc.premiumFull, s);
-  $('dailyRateCalc').textContent = money(inc.dailyRate, s);
-  $('dailyRateGrossCalc').textContent = t('kv.dailyRateSub', { gross: money(inc.grossDailyRate, s) });
-  $('utilizationCalc').textContent = pct(inc.utilization / 100);
-  $('premiumCalc').textContent = t('premium.payoutValue', { amount: money(inc.netPremium, s), days: num(inc.projectDays), rate: money(inc.dailyRate, s) });
+  syncSalaryFields(inc);
 
-  // Карточка годового бонуса
-  $('bonusYearCalc').textContent = money(inc.netBonusYear, s);
-  $('bonusYearGrossCalc').textContent = t('kv.netGross', { gross: money(inc.grossBonusYear, s) });
-  $('bonusMonthCalc').textContent = money(inc.netBonus, s);
-  $('bonusMonthGrossCalc').textContent = t('kv.netGross', { gross: money(inc.grossBonus, s) });
+  // Карточки премии и бонуса: сумма в базе введённого оклада, вторая база — в подписи.
+  const isGross = inc.salaryBasis === 'gross';
+  const showPair = (id, net, gross) => {
+    $(id).textContent = money(isGross ? gross : net, s);
+    $(`${id.replace(/Calc$/, '')}OtherCalc`).textContent = t(isGross ? 'kv.otherNet' : 'kv.otherGross', { other: money(isGross ? net : gross, s) });
+  };
+  showPair('premiumFullCalc', inc.premiumFull, inc.grossPremiumFull);
+  showPair('dailyRateCalc', inc.dailyRate, inc.grossDailyRate);
+  showPair('bonusYearCalc', inc.netBonusYear, inc.grossBonusYear);
+  showPair('bonusMonthCalc', inc.netBonus, inc.grossBonus);
+  $('utilizationCalc').textContent = pct(inc.utilization / 100);
+  $('premiumCalc').textContent = t('premium.payoutValue', {
+    amount: money(isGross ? inc.grossPremium : inc.netPremium, s),
+    days: num(inc.projectDays),
+    rate: money(isGross ? inc.grossDailyRate : inc.dailyRate, s),
+    basis: t(`basis.${inc.salaryBasis}`),
+  });
 
   // Ключевые показатели
   $('hNet').textContent = money0(inc.netPay, s);
@@ -485,7 +515,8 @@ function resultAsText(r) {
   const out = [
     t('copy.title', { country: countryName(r.country), regime: regimeText(r.regime, 'label') }),
     '',
-    line(t('copy.salary'), money(inc.netSalary, s)),
+    line(t('copy.salary'), `${money(inc.netSalary, s)}${inc.salaryBasis === 'net' ? ` ${t('copy.source')}` : ''}`),
+    line(t('copy.salaryGross'), `${money(inc.grossSalary, s)}${inc.salaryBasis === 'gross' ? ` ${t('copy.source')}` : ''}`),
     t('copy.premium', { pct: pct(inc.premiumPct / 100), full: money(inc.premiumFull, s), rate: money(inc.dailyRate, s), grossRate: money(inc.grossDailyRate, s) }),
     line(t('copy.premiumDays', { days: num(inc.projectDays), work: num(inc.workDays), util: pct(inc.utilization / 100) }), money(inc.netPremium, s)),
   ];

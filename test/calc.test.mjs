@@ -181,6 +181,39 @@ test('строки результата несут ключи перевода, 
   assert.deepEqual(r.employee.find((x) => x.key === 'opv').hint, { key: 'hint.capMzp', vars: { n: 50 } });
 });
 
+test('ввод gross: РФ 100 000 gross → 87 000 на руки, отчисления от gross', () => {
+  const r = calculate({ regime: 'ru_td_general', salaryBasis: 'gross', grossSalary: 100_000, premiumPct: 0, workDays: 21, projectDays: 0 });
+  close(r.income.gross, 100_000);
+  close(r.income.grossSalary, 100_000);
+  close(r.income.netSalary, 87_000);
+  close(r.employerTotal, 30_200);
+});
+
+test('ввод gross: премия и бонус считаются от gross-оклада', () => {
+  const r = calculate({ regime: 'ru_td_general', salaryBasis: 'gross', grossSalary: 100_000, premiumPct: 30, workDays: 20, projectDays: 10, annualBonusPct: 8 });
+  close(r.income.grossPremiumFull, 30_000);
+  close(r.income.grossDailyRate, 1_500);
+  close(r.income.grossPremium, 15_000);
+  close(r.income.grossBonus, 8_000);
+  close(r.income.gross, 123_000);
+  close(r.income.netTotal, 123_000 * 0.87);
+  close(r.income.dailyRate, 1_500 * 0.87);
+});
+
+test('прямой и обратный расчёт сходятся во всех режимах', () => {
+  const base = { premiumPct: 30, workDays: 21, projectDays: 15, annualBonusPct: 8, extras: { dms: { amount: 120_000, period: 'year' } } };
+  for (const id of Object.keys(REGIMES)) {
+    for (const net of [80_000, 600_000, 9_000_000]) {
+      const fromNet = calculate({ ...base, regime: id, netSalary: net });
+      const fromGross = calculate({ ...base, regime: id, salaryBasis: 'gross', grossSalary: fromNet.income.grossSalary });
+      close(fromGross.income.netSalary, net, 0.05);
+      close(fromGross.income.netTotal, fromNet.income.netTotal, 0.05);
+      close(fromGross.totalCost, fromNet.totalCost, 0.05);
+      assert.equal(fromGross.income.salaryBasis, 'gross');
+    }
+  }
+});
+
 test('дополнительные затраты приводятся к месяцу', () => {
   const e = monthlyExtras({
     telecom: { amount: 1200, period: 'month' },

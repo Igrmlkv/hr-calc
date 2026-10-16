@@ -239,11 +239,15 @@ export function monthlyExtras(extras = {}) {
 /**
  * Полный расчёт карточки.
  * input = {
- *   regime, netSalary,
- *   premiumPct   — премия в % от оклада (при 100 % загрузки),
+ *   regime,
+ *   salaryBasis  — 'net' (по умолчанию): оклад задан на руки, gross подбирается обратным расчётом;
+ *                  'gross': оклад задан начислением, сумма на руки считается прямым расчётом,
+ *   netSalary    — оклад на руки (при salaryBasis = 'net'),
+ *   grossSalary  — оклад gross (при salaryBasis = 'gross'),
+ *   premiumPct   — премия в % от оклада (при 100 % загрузки), в той же базе, что и оклад,
  *   workDays     — рабочих дней в месяце по календарю,
  *   projectDays  — дней на проекте в этом месяце,
- *   annualBonusPct — годовой бонус в % от годового оклада (выплата раз в год,
+ *   annualBonusPct — годовой бонус в % от годового оклада в той же базе (выплата раз в год,
  *                    в стоимости учитывается ежемесячным резервом 1/12),
  *   extras: { telecom:{amount,period}, dms:{...}, training:{...}, equipment:{amount,months} },
  *   options: { kzOpvrApplies, injuryRate },
@@ -256,27 +260,31 @@ export function calculate(input) {
   const regime = REGIMES[input.regime];
   if (!regime) throw new Error(`Неизвестный режим: ${input.regime}`);
 
-  const netSalary = Math.max(0, Number(input.netSalary) || 0);
+  // Все составляющие сначала считаются в базе введённого оклада (на руки или gross).
+  const salaryBasis = input.salaryBasis === 'gross' ? 'gross' : 'net';
+  const salary = Math.max(0, Number(salaryBasis === 'gross' ? input.grossSalary : input.netSalary) || 0);
   const premiumPct = Math.max(0, Number(input.premiumPct) || 0);
   const workDays = Math.max(0, Number(input.workDays) || 0);
   const projectDays = clamp(Number(input.projectDays) || 0, 0, workDays);
-  const premiumFull = netSalary * (premiumPct / 100); // премия за месяц при 100 % загрузки
+  const premiumFull = salary * (premiumPct / 100); // премия за месяц при 100 % загрузки
   const dailyRate = workDays > 0 ? premiumFull / workDays : 0; // фиксированная ставка в день
   const utilization = workDays > 0 ? (projectDays / workDays) * 100 : 0;
-  const netPremium = dailyRate * projectDays;
+  const premium = dailyRate * projectDays;
   const annualBonusPct = Math.max(0, Number(input.annualBonusPct) || 0);
-  const netBonusYear = netSalary * 12 * (annualBonusPct / 100);
-  const netBonus = netBonusYear / 12; // ежемесячный резерв
-  const netTotal = netSalary + netPremium + netBonus;
+  const bonus = salary * (annualBonusPct / 100); // ежемесячный резерв годового бонуса
+  const total = salary + premium + bonus;
 
-  const gross = grossUp(input.regime, netTotal, params, options);
+  const gross = salaryBasis === 'gross' ? total : grossUp(input.regime, total, params, options);
   const breakdown = computeFromGross(input.regime, gross, params, options);
-  // Начисление распределяется по составляющим пропорционально суммам на руки.
-  const grossFactor = netTotal > 0 ? gross / netTotal : 1;
-  const grossPremium = netPremium * grossFactor;
-  const grossBonus = netBonus * grossFactor;
-  const grossSalary = gross - grossPremium - grossBonus;
-  const grossDailyRate = dailyRate * grossFactor;
+  const netTotal = salaryBasis === 'gross' ? breakdown.net : total;
+  // Перевод составляющих в обе базы — пропорционально их доле в итоге.
+  const toNet = total > 0 ? netTotal / total : 1;
+  const toGross = total > 0 ? gross / total : 1;
+  const netSalary = salary * toNet;
+  const netPremium = premium * toNet;
+  const netBonus = bonus * toNet;
+  const grossPremium = premium * toGross;
+  const grossBonus = bonus * toGross;
 
   const extras = monthlyExtras(input.extras);
   const payrollCost = gross + breakdown.employerTotal; // ФОТ с отчислениями
@@ -288,25 +296,27 @@ export function calculate(input) {
     regime: input.regime,
     country: regime.country,
     income: {
+      salaryBasis,
       netSalary: round2(netSalary),
+      grossSalary: round2(salary * toGross),
       premiumPct,
-      premiumFull: round2(premiumFull),
-      dailyRate: round2(dailyRate),
+      premiumFull: round2(premiumFull * toNet),
+      grossPremiumFull: round2(premiumFull * toGross),
+      dailyRate: round2(dailyRate * toNet),
+      grossDailyRate: round2(dailyRate * toGross),
       workDays,
       projectDays,
       utilization: round2(utilization),
-      grossDailyRate: round2(grossDailyRate),
       annualBonusPct,
       netBonus: round2(netBonus),
       grossBonus: round2(grossBonus),
-      netBonusYear: round2(netBonusYear),
+      netBonusYear: round2(netBonus * 12),
       grossBonusYear: round2(grossBonus * 12),
       netPay: round2(netSalary + netPremium),
       netPremium: round2(netPremium),
+      grossPremium: round2(grossPremium),
       netTotal: round2(netTotal),
       gross: round2(gross),
-      grossSalary: round2(grossSalary),
-      grossPremium: round2(grossPremium),
     },
     employee: r2list(breakdown.employee),
     employeeTotal: round2(breakdown.employeeTotal),
