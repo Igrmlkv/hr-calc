@@ -78,13 +78,13 @@
           <label class="field">
             <span class="field__label" data-i18n="field.premiumPct">Премия, % от оклада</span>
             <span class="range">
-              <input id="premiumPct" class="input input--num" type="text" inputmode="decimal" autocomplete="off" value="30">
+              <input id="premiumPct" class="input input--num" type="text" inputmode="decimal" autocomplete="off" data-i18n-ph="ph.premiumPct">
               <span>%</span>
             </span>
           </label>
           <label class="field">
             <span class="field__label" data-i18n="field.workDays">Рабочих дней в месяце</span>
-            <input id="workDays" class="input input--num" type="text" inputmode="decimal" autocomplete="off" value="21">
+            <input id="workDays" class="input input--num" type="text" inputmode="decimal" autocomplete="off" data-i18n-ph="ph.workDays">
           </label>
         </div>
         <div class="kv">
@@ -102,8 +102,8 @@
         <div class="field">
           <span class="field__label" data-i18n="field.projectDays">Дней на проекте в этом месяце</span>
           <div class="range">
-            <input id="projectDaysRange" type="range" min="0" max="21" step="0.5" value="21">
-            <input id="projectDays" class="input input--num input--short" type="text" inputmode="decimal" autocomplete="off" value="21">
+            <input id="projectDaysRange" type="range" min="0" max="0" step="0.5" value="0">
+            <input id="projectDays" class="input input--num input--short" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
             <span class="muted" id="utilizationCalc">100 %</span>
           </div>
           <p class="field__hint"><span data-i18n="premium.payout">Премия к выплате:</span> <strong id="premiumCalc">0</strong></p>
@@ -116,7 +116,7 @@
         <label class="field">
           <span class="field__label" data-i18n="field.bonusPct">Бонус, % от годового оклада</span>
           <span class="range range--narrow">
-            <input id="annualBonusPct" class="input input--num" type="text" inputmode="decimal" autocomplete="off" value="8">
+            <input id="annualBonusPct" class="input input--num" type="text" inputmode="decimal" autocomplete="off" data-i18n-ph="ph.bonusPct">
             <span>%</span>
           </span>
         </label>
@@ -155,7 +155,7 @@
         <div class="extra extra--eq">
           <span class="field__label" data-i18n="extras.equipment">Оборудование</span>
           <input id="equipmentAmount" class="input input--num" type="text" inputmode="decimal" data-i18n-ph="extras.costPlaceholder" placeholder="стоимость">
-          <label class="extra__months"><span data-i18n="extras.over">на</span> <input id="equipmentMonths" class="input input--num input--short" type="text" inputmode="numeric" value="24"> <span data-i18n="extras.months">мес.</span></label>
+          <label class="extra__months"><span data-i18n="extras.over">на</span> <input id="equipmentMonths" class="input input--num input--short" type="text" inputmode="numeric" placeholder="—"> <span data-i18n="extras.months">мес.</span></label>
         </div>
       </div>
 
@@ -171,6 +171,15 @@
           <button type="button" class="btn btn--ghost" id="resetParams" data-i18n="params.reset">Вернуть значения 2026</button>
         </div>
       </details>
+
+      <div class="card">
+        <h2 class="card__title" data-i18n="card.defaults">Мои значения по умолчанию</h2>
+        <p class="card__sub" id="defaultsStatus"></p>
+        <div class="row-actions row-actions--tight">
+          <button type="button" class="btn" id="saveDefaults" data-i18n="defaults.save">Сохранить текущие значения</button>
+          <button type="button" class="btn btn--ghost" id="deleteDefaults" data-i18n="defaults.delete" hidden>Удалить</button>
+        </div>
+      </div>
     </section>
 
     <!-- ===== Результат ===== -->
@@ -235,7 +244,7 @@
       <div class="row-actions row-actions--result no-print">
         <button type="button" class="btn" id="copyBtn" data-i18n="btn.copy">Скопировать расчёт</button>
         <button type="button" class="btn btn--ghost" id="printBtn" data-i18n="btn.print">Печать / PDF</button>
-        <button type="button" class="btn btn--ghost" id="resetAll" data-i18n="btn.reset">Очистить</button>
+        <button type="button" class="btn btn--ghost" id="resetAll">Очистить</button>
       </div>
     </section>
   </main>

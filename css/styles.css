@@ -202,6 +202,7 @@ select.input { appearance: auto; }
 
 /* ---------- Кнопки ---------- */
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.row-actions--tight { margin-top: 0; }
 .btn {
   font-family: inherit; font-size: 15px; font-weight: 500; padding: 10px 22px; cursor: pointer;
   background: var(--mp-surface); color: var(--mp-primary); border: 1.5px solid var(--mp-primary);

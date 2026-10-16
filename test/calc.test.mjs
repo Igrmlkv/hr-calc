@@ -214,6 +214,18 @@ test('прямой и обратный расчёт сходятся во все
   }
 });
 
+test('пустые поля (null) дают нули без NaN', () => {
+  const r = calculate({
+    regime: 'kz_td_our', netSalary: null, premiumPct: null, workDays: null, projectDays: null, annualBonusPct: null,
+    extras: { telecom: { amount: null, period: 'month' }, equipment: { amount: 240_000, months: null } },
+  });
+  const nums = JSON.stringify(r).match(/NaN|null/g);
+  assert.equal(nums, null);
+  close(r.income.gross, 0);
+  close(r.extras.total, 240_000); // без срока амортизации — вся сумма в текущем месяце
+  close(r.totalCost, 240_000);
+});
+
 test('дополнительные затраты приводятся к месяцу', () => {
   const e = monthlyExtras({
     telecom: { amount: 1200, period: 'month' },

@@ -2,7 +2,8 @@ import { calculate } from './calc.js';
 import { REGIMES, PARAM_FIELDS, cloneDefaultParams, regimesForCountry } from './params.js';
 import { LANGS, LOCALES, translate } from './i18n.js';
 
-const STORAGE_KEY = 'hr-calc:state:v1';
+const STORAGE_KEY = 'hr-calc:state:v1'; // последние введённые значения
+const PROFILE_KEY = 'hr-calc:defaults:v1'; // «мои значения по умолчанию»
 const $ = (id) => document.getElementById(id);
 
 /* ---------- Состояние ---------- */
@@ -24,18 +25,19 @@ const defaultState = () => ({
   regime: 'ru_td_general',
   regimeByCountry: { RU: 'ru_td_general', KZ: 'kz_td_our', UZ: 'uz_td_standard' },
   salaryBasis: 'net', // от какой суммы идёт расчёт: 'net' или 'gross'
-  netSalary: 0,
-  grossSalary: 0,
-  premiumPct: 30,
-  workDays: 21,
-  projectDays: 21,
-  annualBonusPct: 8,
+  // Числовые поля при первом запуске пустые (null); в полях показываются подсказки-примеры.
+  netSalary: null,
+  grossSalary: null,
+  premiumPct: null,
+  workDays: null,
+  projectDays: null,
+  annualBonusPct: null,
   kzOpvrApplies: true,
   extras: {
-    telecom: { amount: 0, period: 'month' },
-    dms: { amount: 0, period: 'year' },
-    training: { amount: 0, period: 'year' },
-    equipment: { amount: 0, months: 24 },
+    telecom: { amount: null, period: 'month' },
+    dms: { amount: null, period: 'year' },
+    training: { amount: null, period: 'year' },
+    equipment: { amount: null, months: null },
   },
   params: cloneDefaultParams(),
 });
@@ -62,30 +64,40 @@ function reviveParams(stored) {
 
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-function loadState() {
+// Собирает состояние из сохранённого снимка. Берутся только ключи текущей схемы: поля прошлых
+// версий отбрасываются, недостающие остаются по умолчанию, вложенные объекты сливаются на один уровень.
+function stateFrom(saved) {
   const st = defaultState();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return st;
-    const saved = JSON.parse(raw);
-    // Берутся только ключи текущей схемы: поля прошлых версий отбрасываются, недостающие
-    // остаются по умолчанию, вложенные объекты (extras, regimeByCountry) сливаются на один уровень.
-    for (const k of Object.keys(st)) {
-      if (k === 'params' || saved[k] === undefined) continue;
-      st[k] = isPlainObject(st[k]) ? { ...st[k], ...saved[k] } : saved[k];
-    }
-    st.params = reviveParams(saved.params);
-    if (!REGIMES[st.regime]) st.regime = st.regimeByCountry[st.country];
-    if (!LANGS.includes(st.lang)) st.lang = detectLang();
-    if (st.salaryBasis !== 'gross') st.salaryBasis = 'net';
-  } catch { /* повреждённое хранилище — начинаем заново */ }
+  for (const k of Object.keys(st)) {
+    if (k === 'params' || saved[k] === undefined) continue;
+    st[k] = isPlainObject(st[k]) ? { ...st[k], ...saved[k] } : saved[k];
+  }
+  st.params = reviveParams(saved.params);
+  if (!REGIMES[st.regime]) st.regime = st.regimeByCountry[st.country];
+  if (!LANGS.includes(st.lang)) st.lang = detectLang();
+  if (st.salaryBasis !== 'gross') st.salaryBasis = 'net';
   return st;
 }
-function saveState() {
+function readStored(key) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, params: serializeParams(state.params) }));
-  } catch { /* приватный режим и т. п. — просто не сохраняем */ }
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; } // приватный режим или повреждённые данные
 }
+function writeStored(key, value) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch { return false; }
+}
+const snapshot = () => ({ ...state, params: serializeParams(state.params) });
+
+function loadState() {
+  const saved = readStored(STORAGE_KEY);
+  try { return saved ? stateFrom(saved) : defaultState(); } catch { return defaultState(); }
+}
+const saveState = () => writeStored(STORAGE_KEY, snapshot());
 
 let state = loadState();
 let last = null; // последний результат расчёта
@@ -138,6 +150,7 @@ function applyStaticTexts() {
   document.querySelectorAll('[data-i18n-label]').forEach((el) => (el.dataset.label = t(el.dataset.i18nLabel)));
   document.querySelectorAll('.lang__btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === state.lang)));
   setNetStatus();
+  renderDefaultsUi();
 }
 
 function setLang(lang) {
@@ -278,11 +291,14 @@ function renderBrackets() {
 /* ---------- Привязка полей ввода ---------- */
 const refreshers = [];
 
-function bindNumber(id, get, set, fmt = (v) => (v ? nf.format(v) : '')) {
+const isEmpty = (v) => v === null || v === undefined || v === '';
+const nonNeg = (v) => (isEmpty(v) ? null : Math.max(0, v));
+// Числовое поле: пустой ввод хранится как null (поле остаётся пустым), иначе — число.
+function bindNumber(id, get, set, fmt = (v) => nf.format(v)) {
   const el = $(id);
-  const show = () => (el.value = fmt(get()));
+  const show = () => { const v = get(); el.value = isEmpty(v) ? '' : fmt(v); };
   show();
-  el.addEventListener('input', () => { set(parseNum(el.value)); update(); });
+  el.addEventListener('input', () => { set(el.value.trim() === '' ? null : parseNum(el.value)); update(); });
   el.addEventListener('blur', show);
   el.addEventListener('focus', () => el.select());
   refreshers.push(show);
@@ -292,8 +308,8 @@ const SALARY_FIELDS = { net: 'netSalary', gross: 'grossSalary' };
 for (const [basis, key] of Object.entries(SALARY_FIELDS)) {
   bindNumber(
     key,
-    () => (state.salaryBasis === basis ? state[key] : last?.income[key] ?? 0),
-    (v) => { state.salaryBasis = basis; state[key] = Math.max(0, v); },
+    () => (state.salaryBasis === basis ? state[key] : last?.income[key] || null),
+    (v) => { state.salaryBasis = basis; state[key] = nonNeg(v); },
   );
 }
 function syncSalaryFields(inc) {
@@ -306,12 +322,13 @@ function syncSalaryFields(inc) {
     if (!isSource && document.activeElement !== el) el.value = inc[key] ? nf.format(inc[key]) : '';
   }
 }
-bindNumber('premiumPct', () => state.premiumPct, (v) => (state.premiumPct = Math.max(0, v)), num);
-bindNumber('annualBonusPct', () => state.annualBonusPct, (v) => (state.annualBonusPct = Math.max(0, v)), num);
+bindNumber('premiumPct', () => state.premiumPct, (v) => (state.premiumPct = nonNeg(v)), num);
+bindNumber('annualBonusPct', () => state.annualBonusPct, (v) => (state.annualBonusPct = nonNeg(v)), num);
 for (const key of ['telecom', 'dms', 'training', 'equipment']) {
-  bindNumber(`${key}Amount`, () => state.extras[key].amount, (v) => (state.extras[key].amount = Math.max(0, v)));
+  bindNumber(`${key}Amount`, () => state.extras[key].amount, (v) => (state.extras[key].amount = nonNeg(v)));
 }
-bindNumber('equipmentMonths', () => state.extras.equipment.months, (v) => (state.extras.equipment.months = Math.max(1, Math.round(v) || 1)), (v) => String(v));
+bindNumber('equipmentMonths', () => state.extras.equipment.months,
+  (v) => (state.extras.equipment.months = isEmpty(v) ? null : Math.max(1, Math.round(v) || 1)), (v) => String(v));
 for (const key of ['telecom', 'dms', 'training']) {
   const sel = $(`${key}Period`);
   sel.value = state.extras[key].period;
@@ -322,24 +339,28 @@ for (const key of ['telecom', 'dms', 'training']) {
   const workEl = $('workDays');
   const range = $('projectDaysRange');
   const daysEl = $('projectDays');
-  const show = () => {
-    workEl.value = pf.format(state.workDays);
-    range.max = String(state.workDays);
-    range.value = String(state.projectDays);
-    daysEl.value = pf.format(state.projectDays);
-  };
+  const fmtDays = (v) => (isEmpty(v) ? '' : pf.format(v));
+  const syncRange = () => { range.max = String(state.workDays ?? 0); range.value = String(state.projectDays ?? 0); };
+  const show = () => { workEl.value = fmtDays(state.workDays); daysEl.value = fmtDays(state.projectDays); syncRange(); };
   show();
   workEl.addEventListener('input', () => {
-    const wasFull = state.projectDays >= state.workDays;
-    state.workDays = Math.min(31, Math.max(0, parseNum(workEl.value)));
-    state.projectDays = wasFull ? state.workDays : Math.min(state.projectDays, state.workDays);
-    range.max = String(state.workDays); range.value = String(state.projectDays); daysEl.value = pf.format(state.projectDays);
+    // Пока дни на проекте не заданы или равны полному месяцу, они следуют за рабочими днями.
+    const follow = isEmpty(state.projectDays) || (!isEmpty(state.workDays) && state.projectDays >= state.workDays);
+    state.workDays = workEl.value.trim() === '' ? null : Math.min(31, Math.max(0, parseNum(workEl.value)));
+    if (follow) state.projectDays = state.workDays;
+    else if (!isEmpty(state.workDays)) state.projectDays = Math.min(state.projectDays, state.workDays);
+    daysEl.value = fmtDays(state.projectDays); syncRange();
     update();
   });
   workEl.addEventListener('blur', show);
   workEl.addEventListener('focus', () => workEl.select());
-  range.addEventListener('input', () => { state.projectDays = Number(range.value); daysEl.value = pf.format(state.projectDays); update(); });
-  daysEl.addEventListener('input', () => { state.projectDays = Math.min(state.workDays, Math.max(0, parseNum(daysEl.value))); range.value = String(state.projectDays); update(); });
+  range.addEventListener('input', () => { state.projectDays = Number(range.value); daysEl.value = fmtDays(state.projectDays); update(); });
+  daysEl.addEventListener('input', () => {
+    const v = daysEl.value.trim() === '' ? null : Math.max(0, parseNum(daysEl.value));
+    state.projectDays = isEmpty(v) || isEmpty(state.workDays) ? v : Math.min(state.workDays, v);
+    syncRange();
+    update();
+  });
   daysEl.addEventListener('blur', show);
   daysEl.addEventListener('focus', () => daysEl.select());
   refreshers.push(show);
@@ -365,12 +386,37 @@ $('resetParams').addEventListener('click', () => {
   update();
   toast(t('toast.paramsReset'));
 });
-$('resetAll').addEventListener('click', () => {
-  const d = defaultState();
-  for (const k of ['salaryBasis', 'netSalary', 'grossSalary', 'premiumPct', 'workDays', 'projectDays', 'annualBonusPct', 'extras']) state[k] = d[k];
+/* ---------- Мои значения по умолчанию ---------- */
+// Профиль — снимок всех полей, кроме языка интерфейса. «Очистить» возвращает к нему,
+// а если профиль не сохранён — к пустым полям.
+function applySnapshot(saved) {
+  const next = saved ? stateFrom(saved) : defaultState();
+  for (const k of Object.keys(next)) if (k !== 'lang') state[k] = next[k];
+  renderCountry();
   refreshers.forEach((fn) => fn());
   update();
+}
+function renderDefaultsUi() {
+  const profile = readStored(PROFILE_KEY);
+  const fmtDate = new Intl.DateTimeFormat(LOCALES[state.lang], { dateStyle: 'medium', timeStyle: 'short' });
+  $('defaultsStatus').textContent = profile
+    ? t('defaults.statusSaved', { date: fmtDate.format(new Date(profile.savedAt)) })
+    : t('defaults.statusNone');
+  $('deleteDefaults').hidden = !profile;
+  $('resetAll').textContent = t(profile ? 'btn.resetToMine' : 'btn.reset');
+}
+$('saveDefaults').addEventListener('click', () => {
+  const { lang, ...values } = snapshot();
+  const ok = writeStored(PROFILE_KEY, { savedAt: Date.now(), state: values });
+  renderDefaultsUi();
+  toast(t(ok ? 'toast.defaultsSaved' : 'toast.storageError'));
 });
+$('deleteDefaults').addEventListener('click', () => {
+  writeStored(PROFILE_KEY, null);
+  renderDefaultsUi();
+  toast(t('toast.defaultsDeleted'));
+});
+$('resetAll').addEventListener('click', () => applySnapshot(readStored(PROFILE_KEY)?.state));
 $('printBtn').addEventListener('click', () => window.print());
 $('copyBtn').addEventListener('click', copyResult);
 

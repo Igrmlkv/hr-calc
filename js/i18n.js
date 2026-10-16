@@ -121,6 +121,20 @@ const ru = {
   'btn.copy': 'Скопировать расчёт',
   'btn.print': 'Печать / PDF',
   'btn.reset': 'Очистить',
+  'btn.resetToMine': 'Сбросить к моим значениям',
+
+  'card.defaults': 'Мои значения по умолчанию',
+  'defaults.save': 'Сохранить текущие значения',
+  'defaults.delete': 'Удалить',
+  'defaults.statusNone': 'Не заданы. Кнопка «Очистить» делает все поля пустыми. Сохраните текущие значения, чтобы возвращаться к ним.',
+  'defaults.statusSaved': 'Сохранены {date}. Кнопка «Сбросить к моим значениям» возвращает к ним все поля, кроме языка.',
+  'toast.defaultsSaved': 'Значения по умолчанию сохранены',
+  'toast.defaultsDeleted': 'Значения по умолчанию удалены',
+  'toast.storageError': 'Не удалось сохранить: хранилище браузера недоступно',
+
+  'ph.premiumPct': 'напр. 30',
+  'ph.bonusPct': 'напр. 8',
+  'ph.workDays': 'напр. 21',
 
   'footer.assumption': 'Расчёт предполагает равномерный доход в течение года: годовые пороги (прогрессивная шкала, предельные базы) применяются как 1/12 в месяц, годовой бонус учитывается резервом 1/12. Ставки по умолчанию — 2026 год; перед применением сверьте их с актуальным законодательством.',
   'footer.storage': 'Данные хранятся только в вашем браузере. Приложение работает офлайн после первой загрузки.',
@@ -383,6 +397,20 @@ const en = {
   'btn.copy': 'Copy calculation',
   'btn.print': 'Print / PDF',
   'btn.reset': 'Clear',
+  'btn.resetToMine': 'Reset to my values',
+
+  'card.defaults': 'My default values',
+  'defaults.save': 'Save current values',
+  'defaults.delete': 'Delete',
+  'defaults.statusNone': 'Not set. The "Clear" button empties all fields. Save the current values to return to them.',
+  'defaults.statusSaved': 'Saved {date}. The "Reset to my values" button restores all fields except the language.',
+  'toast.defaultsSaved': 'Default values saved',
+  'toast.defaultsDeleted': 'Default values deleted',
+  'toast.storageError': 'Could not save: browser storage is unavailable',
+
+  'ph.premiumPct': 'e.g. 30',
+  'ph.bonusPct': 'e.g. 8',
+  'ph.workDays': 'e.g. 21',
 
   'footer.assumption': 'The calculation assumes even income over the year: annual thresholds (progressive scale, contribution caps) are applied as 1/12 per month, and the annual bonus is included as a 1/12 monthly accrual. Default rates are for 2026; check them against current legislation before use.',
   'footer.storage': 'Data is stored only in your browser. The app works offline after the first load.',
