@@ -59,12 +59,12 @@
         <h2 class="card__title" data-i18n="card.income">Оклад в месяц</h2>
         <div class="pair">
           <label class="field">
-            <span class="field__label"><span data-i18n="field.netSalary">На руки</span> <em class="cur" data-cur></em><span class="src" data-i18n="field.source" data-src="net">исходное</span></span>
+            <span class="field__label"><span data-i18n="field.netSalary">На руки</span> <em class="cur" data-cur></em><span class="badge badge--src" data-i18n="field.source" data-src="net" hidden>исходное</span></span>
             <input id="netSalary" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
           </label>
           <span class="pair__arrow" aria-hidden="true">⇄</span>
           <label class="field">
-            <span class="field__label"><span data-i18n="field.grossSalary">Gross</span> <em class="cur" data-cur></em><span class="src" data-i18n="field.source" data-src="gross">исходное</span></span>
+            <span class="field__label"><span data-i18n="field.grossSalary">Gross</span> <em class="cur" data-cur></em><span class="badge badge--src" data-i18n="field.source" data-src="gross" hidden>исходное</span></span>
             <input id="grossSalary" class="input input--num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
           </label>
         </div>
@@ -175,7 +175,7 @@
       <div class="card">
         <h2 class="card__title" data-i18n="card.defaults">Мои значения по умолчанию</h2>
         <p class="card__sub" id="defaultsStatus"></p>
-        <div class="row-actions row-actions--tight">
+        <div class="row-actions">
           <button type="button" class="btn" id="saveDefaults" data-i18n="defaults.save">Сохранить текущие значения</button>
           <button type="button" class="btn btn--ghost" id="deleteDefaults" data-i18n="defaults.delete" hidden>Удалить</button>
         </div>

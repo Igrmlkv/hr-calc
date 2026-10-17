@@ -21,6 +21,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; padding: 0; }
 body {
   font-family: var(--mp-font-stack);
@@ -121,7 +122,7 @@ a:hover { color: var(--mp-primary-dark); }
   outline: none; transition: border-color .15s;
 }
 .input::placeholder { color: #9A9A9A; }
-.input:focus { border-color: var(--mp-primary); }
+.input:focus, .input--src { border-color: var(--mp-primary); }
 .input:focus-visible { outline: 2px solid var(--mp-primary-light); outline-offset: 1px; }
 .input--num { font-variant-numeric: tabular-nums; text-align: right; }
 .input--short { width: 84px; flex: none; }
@@ -155,9 +156,7 @@ select.input { appearance: auto; }
 .pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: end; }
 .pair .field { margin-bottom: 0; }
 .pair__arrow { padding-bottom: 11px; color: var(--mp-text-muted); font-size: 18px; line-height: 1; }
-.src { display: none; font-size: 11px; font-weight: 600; color: var(--mp-primary); background: var(--mp-primary-surface); border-radius: var(--mp-radius-button-pill); padding: 1px 8px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
-.src--on { display: inline-block; }
-.input--src { border-color: var(--mp-primary); }
+.badge--src { background: var(--mp-primary-surface); color: var(--mp-primary); font-size: 11px; font-weight: 600; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
 .input--calc { background: var(--mp-surface-alt); color: var(--mp-text-muted); }
 @media (max-width: 420px) {
   .pair { grid-template-columns: minmax(0, 1fr); gap: 4px; }
@@ -202,7 +201,6 @@ select.input { appearance: auto; }
 
 /* ---------- Кнопки ---------- */
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-.row-actions--tight { margin-top: 0; }
 .btn {
   font-family: inherit; font-size: 15px; font-weight: 500; padding: 10px 22px; cursor: pointer;
   background: var(--mp-surface); color: var(--mp-primary); border: 1.5px solid var(--mp-primary);

@@ -26,8 +26,7 @@ const defaultState = () => ({
   regimeByCountry: { RU: 'ru_td_general', KZ: 'kz_td_our', UZ: 'uz_td_standard' },
   salaryBasis: 'net', // от какой суммы идёт расчёт: 'net' или 'gross'
   // Числовые поля при первом запуске пустые (null); в полях показываются подсказки-примеры.
-  netSalary: null,
-  grossSalary: null,
+  salary: null, // оклад в базе salaryBasis
   premiumPct: null,
   workDays: null,
   projectDays: null,
@@ -67,16 +66,23 @@ const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArr
 // Собирает состояние из сохранённого снимка. Берутся только ключи текущей схемы: поля прошлых
 // версий отбрасываются, недостающие остаются по умолчанию, вложенные объекты сливаются на один уровень.
 function stateFrom(saved) {
-  const st = defaultState();
-  for (const k of Object.keys(st)) {
-    if (k === 'params' || saved[k] === undefined) continue;
-    st[k] = isPlainObject(st[k]) ? { ...st[k], ...saved[k] } : saved[k];
-  }
-  st.params = reviveParams(saved.params);
-  if (!REGIMES[st.regime]) st.regime = st.regimeByCountry[st.country];
-  if (!LANGS.includes(st.lang)) st.lang = detectLang();
-  if (st.salaryBasis !== 'gross') st.salaryBasis = 'net';
-  return st;
+  if (!saved) return defaultState();
+  try {
+    const src = { ...saved };
+    // Версии до 1.6 хранили оклад в двух полях (netSalary / grossSalary).
+    if (src.salary === undefined) src.salary = (src.salaryBasis === 'gross' ? src.grossSalary : src.netSalary) || null;
+    const st = defaultState();
+    for (const k of Object.keys(st)) {
+      if (k === 'params' || src[k] === undefined) continue;
+      st[k] = isPlainObject(st[k]) ? { ...st[k], ...src[k] } : src[k];
+    }
+    st.params = reviveParams(src.params);
+    if (!PARAM_FIELDS[st.country]) st.country = defaultState().country;
+    if (REGIMES[st.regime]?.country !== st.country) st.regime = regimesForCountry(st.country)[0].id;
+    if (!LANGS.includes(st.lang)) st.lang = detectLang();
+    if (st.salaryBasis !== 'gross') st.salaryBasis = 'net';
+    return st;
+  } catch { return defaultState(); } // повреждённый снимок — начинаем с пустых полей
 }
 function readStored(key) {
   try {
@@ -93,10 +99,7 @@ function writeStored(key, value) {
 }
 const snapshot = () => ({ ...state, params: serializeParams(state.params) });
 
-function loadState() {
-  const saved = readStored(STORAGE_KEY);
-  try { return saved ? stateFrom(saved) : defaultState(); } catch { return defaultState(); }
-}
+const loadState = () => stateFrom(readStored(STORAGE_KEY));
 const saveState = () => writeStored(STORAGE_KEY, snapshot());
 
 let state = loadState();
@@ -104,13 +107,14 @@ let last = null; // последний результат расчёта
 
 /* ---------- Язык, форматирование и парсинг чисел ---------- */
 const t = (key, vars) => translate(state.lang, key, vars);
-let nf, nf0, pf, pctFmt, groupSep, decimalSep;
+let nf, nf0, pf, pctFmt, dateFmt, groupSep, decimalSep;
 function setFormatters() {
   const loc = LOCALES[state.lang];
   nf = new Intl.NumberFormat(loc, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   nf0 = new Intl.NumberFormat(loc, { maximumFractionDigits: 0 });
   pf = new Intl.NumberFormat(loc, { maximumFractionDigits: 2 });
   pctFmt = new Intl.NumberFormat(loc, { style: 'percent', maximumFractionDigits: 2 });
+  dateFmt = new Intl.DateTimeFormat(loc, { dateStyle: 'medium', timeStyle: 'short' });
   const parts = nf.formatToParts(12345.6);
   groupSep = parts.find((x) => x.type === 'group').value;
   decimalSep = parts.find((x) => x.type === 'decimal').value;
@@ -291,81 +295,78 @@ function renderBrackets() {
 /* ---------- Привязка полей ввода ---------- */
 const refreshers = [];
 
-const isEmpty = (v) => v === null || v === undefined || v === '';
-const nonNeg = (v) => (isEmpty(v) ? null : Math.max(0, v));
-// Числовое поле: пустой ввод хранится как null (поле остаётся пустым), иначе — число.
-function bindNumber(id, get, set, fmt = (v) => nf.format(v)) {
+const clampNum = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+// Числовое поле. Пустой ввод хранится как null (поле остаётся пустым), число ограничивается
+// диапазоном [min, max] и при int округляется. Возвращает функцию перерисовки поля.
+function bindNumber(id, get, set, { fmt = (v) => nf.format(v), min = 0, max = Infinity, int = false } = {}) {
   const el = $(id);
-  const show = () => { const v = get(); el.value = isEmpty(v) ? '' : fmt(v); };
+  const show = () => { const v = get(); el.value = v == null ? '' : fmt(v); };
   show();
-  el.addEventListener('input', () => { set(el.value.trim() === '' ? null : parseNum(el.value)); update(); });
+  el.addEventListener('input', () => {
+    const raw = el.value.trim() === '' ? null : parseNum(el.value);
+    set(raw == null ? null : clampNum(int ? Math.round(raw) : raw, min, max));
+    update();
+  });
   el.addEventListener('blur', show);
   el.addEventListener('focus', () => el.select());
   refreshers.push(show);
+  return show;
 }
-// Оклад: два связанных поля. Ввод в поле делает его исходным, второе пересчитывается.
-const SALARY_FIELDS = { net: 'netSalary', gross: 'grossSalary' };
-for (const [basis, key] of Object.entries(SALARY_FIELDS)) {
-  bindNumber(
+
+// Оклад: два связанных поля. Ввод в поле делает его исходным, второе показывает пересчёт.
+const SALARY_FIELDS = Object.entries({ net: 'netSalary', gross: 'grossSalary' }).map(([basis, key]) => ({
+  basis,
+  el: $(key),
+  badge: document.querySelector(`[data-src="${basis}"]`),
+  show: bindNumber(
     key,
-    () => (state.salaryBasis === basis ? state[key] : last?.income[key] || null),
-    (v) => { state.salaryBasis = basis; state[key] = nonNeg(v); },
-  );
-}
-function syncSalaryFields(inc) {
-  for (const [basis, key] of Object.entries(SALARY_FIELDS)) {
-    const el = $(key);
-    const isSource = state.salaryBasis === basis;
-    el.classList.toggle('input--src', isSource);
-    el.classList.toggle('input--calc', !isSource);
-    document.querySelector(`.src[data-src="${basis}"]`).classList.toggle('src--on', isSource);
-    if (!isSource && document.activeElement !== el) el.value = inc[key] ? nf.format(inc[key]) : '';
+    () => (state.salaryBasis === basis ? state.salary : last?.income[key] || null),
+    (v) => { state.salaryBasis = basis; state.salary = v; },
+  ),
+}));
+function syncSalaryFields() {
+  for (const f of SALARY_FIELDS) {
+    const isSource = state.salaryBasis === f.basis;
+    f.el.classList.toggle('input--src', isSource);
+    f.el.classList.toggle('input--calc', !isSource);
+    f.badge.hidden = !isSource;
+    if (!isSource && document.activeElement !== f.el) f.show();
   }
 }
-bindNumber('premiumPct', () => state.premiumPct, (v) => (state.premiumPct = nonNeg(v)), num);
-bindNumber('annualBonusPct', () => state.annualBonusPct, (v) => (state.annualBonusPct = nonNeg(v)), num);
+
+bindNumber('premiumPct', () => state.premiumPct, (v) => (state.premiumPct = v), { fmt: num });
+bindNumber('annualBonusPct', () => state.annualBonusPct, (v) => (state.annualBonusPct = v), { fmt: num });
 for (const key of ['telecom', 'dms', 'training', 'equipment']) {
-  bindNumber(`${key}Amount`, () => state.extras[key].amount, (v) => (state.extras[key].amount = nonNeg(v)));
+  bindNumber(`${key}Amount`, () => state.extras[key].amount, (v) => (state.extras[key].amount = v));
 }
-bindNumber('equipmentMonths', () => state.extras.equipment.months,
-  (v) => (state.extras.equipment.months = isEmpty(v) ? null : Math.max(1, Math.round(v) || 1)), (v) => String(v));
+bindNumber('equipmentMonths', () => state.extras.equipment.months, (v) => (state.extras.equipment.months = v), { fmt: String, min: 1, int: true });
+
+// Рабочие дни и дни на проекте (поле + ползунок).
+const range = $('projectDaysRange');
+const syncRange = () => { range.max = String(state.workDays ?? 0); range.value = String(state.projectDays ?? 0); };
+const showProjectDays = bindNumber('projectDays', () => state.projectDays, (v) => {
+  state.projectDays = v == null || state.workDays == null ? v : Math.min(state.workDays, v);
+  syncRange();
+}, { fmt: num });
+bindNumber('workDays', () => state.workDays, (v) => {
+  // Пока дни на проекте не заданы или равны полному месяцу, они следуют за рабочими днями.
+  const follow = state.projectDays == null || (state.workDays != null && state.projectDays >= state.workDays);
+  state.workDays = v;
+  if (follow) state.projectDays = v;
+  else if (v != null) state.projectDays = Math.min(state.projectDays, v);
+  showProjectDays();
+  syncRange();
+}, { fmt: num, max: 31 });
+range.addEventListener('input', () => { state.projectDays = Number(range.value); showProjectDays(); update(); });
+syncRange();
+refreshers.push(syncRange);
+
 for (const key of ['telecom', 'dms', 'training']) {
   const sel = $(`${key}Period`);
   sel.value = state.extras[key].period;
   sel.addEventListener('change', () => { state.extras[key].period = sel.value; update(); });
   refreshers.push(() => (sel.value = state.extras[key].period));
 }
-{
-  const workEl = $('workDays');
-  const range = $('projectDaysRange');
-  const daysEl = $('projectDays');
-  const fmtDays = (v) => (isEmpty(v) ? '' : pf.format(v));
-  const syncRange = () => { range.max = String(state.workDays ?? 0); range.value = String(state.projectDays ?? 0); };
-  const show = () => { workEl.value = fmtDays(state.workDays); daysEl.value = fmtDays(state.projectDays); syncRange(); };
-  show();
-  workEl.addEventListener('input', () => {
-    // Пока дни на проекте не заданы или равны полному месяцу, они следуют за рабочими днями.
-    const follow = isEmpty(state.projectDays) || (!isEmpty(state.workDays) && state.projectDays >= state.workDays);
-    state.workDays = workEl.value.trim() === '' ? null : Math.min(31, Math.max(0, parseNum(workEl.value)));
-    if (follow) state.projectDays = state.workDays;
-    else if (!isEmpty(state.workDays)) state.projectDays = Math.min(state.projectDays, state.workDays);
-    daysEl.value = fmtDays(state.projectDays); syncRange();
-    update();
-  });
-  workEl.addEventListener('blur', show);
-  workEl.addEventListener('focus', () => workEl.select());
-  range.addEventListener('input', () => { state.projectDays = Number(range.value); daysEl.value = fmtDays(state.projectDays); update(); });
-  daysEl.addEventListener('input', () => {
-    const v = daysEl.value.trim() === '' ? null : Math.max(0, parseNum(daysEl.value));
-    state.projectDays = isEmpty(v) || isEmpty(state.workDays) ? v : Math.min(state.workDays, v);
-    syncRange();
-    update();
-  });
-  daysEl.addEventListener('blur', show);
-  daysEl.addEventListener('focus', () => daysEl.select());
-  refreshers.push(show);
-}
-
 document.querySelectorAll('#countrySeg .seg__btn').forEach((b) => {
   b.addEventListener('click', () => {
     state.country = b.dataset.country;
@@ -390,24 +391,22 @@ $('resetParams').addEventListener('click', () => {
 // Профиль — снимок всех полей, кроме языка интерфейса. «Очистить» возвращает к нему,
 // а если профиль не сохранён — к пустым полям.
 function applySnapshot(saved) {
-  const next = saved ? stateFrom(saved) : defaultState();
-  for (const k of Object.keys(next)) if (k !== 'lang') state[k] = next[k];
+  const next = stateFrom(saved);
+  for (const k of Object.keys(next)) if (k !== 'lang') state[k] = next[k]; // язык профилем не меняется
   renderCountry();
   refreshers.forEach((fn) => fn());
   update();
 }
 function renderDefaultsUi() {
   const profile = readStored(PROFILE_KEY);
-  const fmtDate = new Intl.DateTimeFormat(LOCALES[state.lang], { dateStyle: 'medium', timeStyle: 'short' });
   $('defaultsStatus').textContent = profile
-    ? t('defaults.statusSaved', { date: fmtDate.format(new Date(profile.savedAt)) })
+    ? t('defaults.statusSaved', { date: dateFmt.format(new Date(profile.savedAt)) })
     : t('defaults.statusNone');
   $('deleteDefaults').hidden = !profile;
   $('resetAll').textContent = t(profile ? 'btn.resetToMine' : 'btn.reset');
 }
 $('saveDefaults').addEventListener('click', () => {
-  const { lang, ...values } = snapshot();
-  const ok = writeStored(PROFILE_KEY, { savedAt: Date.now(), state: values });
+  const ok = writeStored(PROFILE_KEY, { savedAt: Date.now(), state: snapshot() });
   renderDefaultsUi();
   toast(t(ok ? 'toast.defaultsSaved' : 'toast.storageError'));
 });
@@ -427,8 +426,8 @@ function update() {
     last = calculate({
       regime: state.regime,
       salaryBasis: state.salaryBasis,
-      netSalary: state.netSalary,
-      grossSalary: state.grossSalary,
+      netSalary: state.salary,
+      grossSalary: state.salary,
       premiumPct: state.premiumPct,
       workDays: state.workDays,
       projectDays: state.projectDays,
@@ -476,23 +475,24 @@ function renderResult(r) {
   const s = sym(r.country);
   const inc = r.income;
 
-  syncSalaryFields(inc);
+  syncSalaryFields();
 
   // Карточки премии и бонуса: сумма в базе введённого оклада, вторая база — в подписи.
   const isGross = inc.salaryBasis === 'gross';
-  const showPair = (id, net, gross) => {
-    $(id).textContent = money(isGross ? gross : net, s);
-    $(`${id.replace(/Calc$/, '')}OtherCalc`).textContent = t(isGross ? 'kv.otherNet' : 'kv.otherGross', { other: money(isGross ? net : gross, s) });
+  const pick = (net, gross) => (isGross ? gross : net);
+  const showPair = (base, net, gross) => {
+    $(`${base}Calc`).textContent = money(pick(net, gross), s);
+    $(`${base}OtherCalc`).textContent = t(isGross ? 'kv.otherNet' : 'kv.otherGross', { other: money(pick(gross, net), s) });
   };
-  showPair('premiumFullCalc', inc.premiumFull, inc.grossPremiumFull);
-  showPair('dailyRateCalc', inc.dailyRate, inc.grossDailyRate);
-  showPair('bonusYearCalc', inc.netBonusYear, inc.grossBonusYear);
-  showPair('bonusMonthCalc', inc.netBonus, inc.grossBonus);
+  showPair('premiumFull', inc.premiumFull, inc.grossPremiumFull);
+  showPair('dailyRate', inc.dailyRate, inc.grossDailyRate);
+  showPair('bonusYear', inc.netBonusYear, inc.grossBonusYear);
+  showPair('bonusMonth', inc.netBonus, inc.grossBonus);
   $('utilizationCalc').textContent = pct(inc.utilization / 100);
   $('premiumCalc').textContent = t('premium.payoutValue', {
-    amount: money(isGross ? inc.grossPremium : inc.netPremium, s),
+    amount: money(pick(inc.netPremium, inc.grossPremium), s),
     days: num(inc.projectDays),
-    rate: money(isGross ? inc.grossDailyRate : inc.dailyRate, s),
+    rate: money(pick(inc.dailyRate, inc.grossDailyRate), s),
     basis: t(`basis.${inc.salaryBasis}`),
   });
 
@@ -558,11 +558,12 @@ function resultAsText(r) {
   const s = sym(r.country);
   const inc = r.income;
   const line = (l, v) => `${l}: ${v}`;
+  const srcTag = (basis) => (inc.salaryBasis === basis ? ` ${t('copy.source')}` : '');
   const out = [
     t('copy.title', { country: countryName(r.country), regime: regimeText(r.regime, 'label') }),
     '',
-    line(t('copy.salary'), `${money(inc.netSalary, s)}${inc.salaryBasis === 'net' ? ` ${t('copy.source')}` : ''}`),
-    line(t('copy.salaryGross'), `${money(inc.grossSalary, s)}${inc.salaryBasis === 'gross' ? ` ${t('copy.source')}` : ''}`),
+    line(t('copy.salary'), money(inc.netSalary, s) + srcTag('net')),
+    line(t('copy.salaryGross'), money(inc.grossSalary, s) + srcTag('gross')),
     t('copy.premium', { pct: pct(inc.premiumPct / 100), full: money(inc.premiumFull, s), rate: money(inc.dailyRate, s), grossRate: money(inc.grossDailyRate, s) }),
     line(t('copy.premiumDays', { days: num(inc.projectDays), work: num(inc.workDays), util: pct(inc.utilization / 100) }), money(inc.netPremium, s)),
   ];

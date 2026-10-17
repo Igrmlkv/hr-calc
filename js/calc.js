@@ -277,14 +277,16 @@ export function calculate(input) {
   const gross = salaryBasis === 'gross' ? total : grossUp(input.regime, total, params, options);
   const breakdown = computeFromGross(input.regime, gross, params, options);
   const netTotal = salaryBasis === 'gross' ? breakdown.net : total;
-  // Перевод составляющих в обе базы — пропорционально их доле в итоге.
+  // Перевод составляющих в обе базы пропорционально их доле в итоге
+  // (для базы ввода коэффициент равен 1).
   const toNet = total > 0 ? netTotal / total : 1;
   const toGross = total > 0 ? gross / total : 1;
-  const netSalary = salary * toNet;
-  const netPremium = premium * toNet;
-  const netBonus = bonus * toNet;
-  const grossPremium = premium * toGross;
-  const grossBonus = bonus * toGross;
+  const both = (x) => [x * toNet, x * toGross];
+  const [netSalary, grossSalary] = both(salary);
+  const [netPremiumFull, grossPremiumFull] = both(premiumFull);
+  const [netDailyRate, grossDailyRate] = both(dailyRate);
+  const [netPremium, grossPremium] = both(premium);
+  const [netBonus, grossBonus] = both(bonus);
 
   const extras = monthlyExtras(input.extras);
   const payrollCost = gross + breakdown.employerTotal; // ФОТ с отчислениями
@@ -298,12 +300,12 @@ export function calculate(input) {
     income: {
       salaryBasis,
       netSalary: round2(netSalary),
-      grossSalary: round2(salary * toGross),
+      grossSalary: round2(grossSalary),
       premiumPct,
-      premiumFull: round2(premiumFull * toNet),
-      grossPremiumFull: round2(premiumFull * toGross),
-      dailyRate: round2(dailyRate * toNet),
-      grossDailyRate: round2(dailyRate * toGross),
+      premiumFull: round2(netPremiumFull),
+      grossPremiumFull: round2(grossPremiumFull),
+      dailyRate: round2(netDailyRate),
+      grossDailyRate: round2(grossDailyRate),
       workDays,
       projectDays,
       utilization: round2(utilization),
